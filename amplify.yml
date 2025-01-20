@@ -6,24 +6,33 @@ applications:
           commands:
             - cd frontend
             - npm ci
+            # Environment setup
+            - |
+              if [ "${AWS_BRANCH}" = "master" ]; then
+                echo "Setting production environment"
+                cp .env.production .env.local
+              else
+                echo "Setting development environment"
+                cp .env.development .env.local
+              fi
         build:
           commands:
             - npm run build
       artifacts:
-        baseDirectory: frontend/.next
+        baseDirectory: .next
         files:
           - '**/*'
       cache:
         paths:
-          - frontend/node_modules/**/*
-          - frontend/.next/cache/**/*
+          - node_modules/**/*
+          - .next/cache/**/*
 
   - backend:
       phases:
         build:
           commands:
-            - '# Execute Supabase migrations if needed'
-            - '# Additional backend build steps'
+            # Supabase migrations will be handled separately
+            - echo "Backend deployment configured in Supabase"
       artifacts:
         baseDirectory: /
         files:
