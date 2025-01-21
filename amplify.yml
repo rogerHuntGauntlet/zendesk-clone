@@ -1,4 +1,9 @@
 version: 1
+backend:
+  phases:
+    build:
+      commands:
+        - export SKIP_SSM=true
 frontend:
   phases:
     preBuild:
