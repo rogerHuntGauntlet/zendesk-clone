@@ -10,16 +10,16 @@ frontend:
       commands:
         - cd frontend
         - nvm use 18
-        - |
-          echo "NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}" > .env.production
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}" >> .env.production
-          echo "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}" >> .env.production
-          echo "SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}" >> .env.production
         - npm ci
     build:
       commands:
-        - cp .env.production .env
-        - NODE_ENV=production npm run build
+        - >
+          NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+          NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+          SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+          NODE_ENV=production
+          npm run build
   artifacts:
     baseDirectory: frontend/.next
     files:
