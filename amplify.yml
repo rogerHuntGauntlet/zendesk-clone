@@ -30,9 +30,4 @@ frontend:
         - key: 'X-Frame-Options'
           value: 'SAMEORIGIN'
         - key: 'X-XSS-Protection'
-          value: '1; mode=block'
-  environmentVariables:
-    - name: NEXT_PUBLIC_SUPABASE_URL
-      value: /amplify/d1rqwmvusqoumq/master/NEXT_PUBLIC_SUPABASE_URL
-    - name: NEXT_PUBLIC_SUPABASE_ANON_KEY
-      value: /amplify/d1rqwmvusqoumq/master/NEXT_PUBLIC_SUPABASE_ANON_KEY 
+          value: '1; mode=block' 
