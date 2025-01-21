@@ -10,16 +10,20 @@ frontend:
       commands:
         - cd frontend
         - nvm use 18
+        - echo "Checking environment variables..."
+        - echo "NEXT_PUBLIC_API_URL is set: $([[ ! -z "$NEXT_PUBLIC_API_URL" ]] && echo "yes" || echo "no")"
+        - echo "NEXT_PUBLIC_SUPABASE_URL is set: $([[ ! -z "$NEXT_PUBLIC_SUPABASE_URL" ]] && echo "yes" || echo "no")"
         - npm ci
     build:
       commands:
-        - >
-          NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-          NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
-          NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
-          SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
-          NODE_ENV=production
-          npm run build
+        - export NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+        - export NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+        - export NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+        - export SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+        - export NODE_ENV=production
+        - echo "Build environment variables:"
+        - env | grep NEXT_PUBLIC
+        - npm run build
   artifacts:
     baseDirectory: frontend/.next
     files:
