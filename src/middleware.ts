@@ -24,8 +24,8 @@ export async function middleware(request: NextRequest) {
   })
 
   const supabase = createServerClient(
-    'https://supabase.co',
-    'your-anon-key',
+    'https://rlaxacnkrfohotpyvnam.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
     {
       cookies: {
         get(name: string) {
