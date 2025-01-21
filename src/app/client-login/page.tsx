@@ -42,19 +42,16 @@ export default function ClientLogin() {
         if (!companyName) {
           throw new Error('Please enter your company name');
         }
-        await signUp(email, password, "client");
-        // After signup, we'll automatically log them in
-        await signIn(email, password, "client");
-      } else {
-        await signIn(email, password, "client");
       }
-      
-      router.push("/client-dashboard");
+
+      // Try to sign in first, it will create the account if it doesn't exist
+      await signIn(email, password, "client");
+      router.push("/project-admin");
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError(activeTab === "login" ? "Invalid credentials. Please try again." : "Failed to create account. Please try again.");
+        setError("Failed to sign in. Please try again.");
       }
     } finally {
       setIsLoading(false);

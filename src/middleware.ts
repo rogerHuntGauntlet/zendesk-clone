@@ -11,7 +11,6 @@ const PROTECTED_PATHS = [
 
 // Paths that require specific roles
 const ROLE_PATHS = {
-  '/project-admin': ['project_admin'],
   '/employee-dashboard': ['employee'],
   '/client-dashboard': ['client'],
 };
@@ -25,25 +24,36 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createServerClient(
     'https://rlaxacnkrfohotpyvnam.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsYXhhY25rcmZvaG90cHl2bmFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzYxOTk3NjcsImV4cCI6MjA1MTc3NTc2N30.djQ3ExBd5Y2wb2sUOZCs5g72U2EgdYte7NqFiLesE9Y',
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          console.log('Middleware - Getting cookie:', name);
+          const value = request.cookies.get(name)?.value;
+          console.log('Middleware - Cookie value exists:', !!value);
+          return value;
         },
         set(name: string, value: string, options: CookieOptions) {
+          console.log('Middleware - Setting cookie:', name);
           response.cookies.set({
             name,
             value,
             ...options,
-          })
+            path: '/',
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 31536000, // 1 year
+          });
         },
         remove(name: string, options: CookieOptions) {
+          console.log('Middleware - Removing cookie:', name);
           response.cookies.set({
             name,
             value: '',
             ...options,
-          })
+            path: '/',
+            maxAge: 0,
+          });
         },
       },
     }
@@ -55,7 +65,14 @@ export async function middleware(request: NextRequest) {
   if (PROTECTED_PATHS.some(path => pathname.startsWith(path))) {
     const { data: { session } } = await supabase.auth.getSession()
 
+    console.log('Middleware - Current path:', pathname);
+    console.log('Middleware - Session:', session ? 'exists' : 'null');
+    if (session) {
+      console.log('Middleware - User role:', session.user.user_metadata.role);
+    }
+
     if (!session) {
+      console.log('No session found, redirecting to login');
       return NextResponse.redirect(new URL('/', request.url))
     }
 
@@ -74,30 +91,15 @@ export async function middleware(request: NextRequest) {
         .single();
 
       if (!projectAccess) {
-        // Redirect to their dashboard if they don't have access
-        switch (userRole) {
-          case 'employee':
-            return NextResponse.redirect(new URL('/employee-dashboard', request.url));
-          case 'client':
-            return NextResponse.redirect(new URL('/client-dashboard', request.url));
-          default:
-            return NextResponse.redirect(new URL('/', request.url));
-        }
+        // If no project access, redirect back to their dashboard
+        return NextResponse.redirect(new URL('/project-admin', request.url));
       }
     }
 
+    // Check role-specific path access
     if (requiredRoles && !requiredRoles.includes(userRole)) {
-      // Redirect to appropriate dashboard based on role
-      switch (userRole) {
-        case 'project_admin':
-          return NextResponse.redirect(new URL('/project-admin', request.url));
-        case 'employee':
-          return NextResponse.redirect(new URL('/employee-dashboard', request.url));
-        case 'client':
-          return NextResponse.redirect(new URL('/client-dashboard', request.url));
-        default:
-          return NextResponse.redirect(new URL('/', request.url));
-      }
+      // If they don't have the required role, redirect to project-admin
+      return NextResponse.redirect(new URL('/project-admin', request.url));
     }
   }
 
