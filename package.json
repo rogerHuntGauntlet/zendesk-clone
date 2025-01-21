@@ -11,6 +11,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@hello-pangea/dnd": "^17.0.0",
     "@mui/icons-material": "^6.4.1",
     "@mui/lab": "^6.0.0-beta.24",
     "@mui/material": "^6.4.1",
@@ -26,11 +27,14 @@
     "@radix-ui/react-tooltip": "^1.1.6",
     "@supabase/ssr": "^0.5.2",
     "autoprefixer": "^10.4.20",
+    "class-variance-authority": "^0.7.1",
     "cmdk": "^1.0.4",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.473.0",
     "next": "14.2.10",
     "react": "^18",
     "react-dom": "^18",
+    "recharts": "^2.15.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
