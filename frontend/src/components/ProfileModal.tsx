@@ -17,11 +17,11 @@ import type { Profile } from '@/types';
 
 interface ProfileModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void;
   profile: Profile;
 }
 
-export function ProfileModal({ open, onOpenChange, profile: initialProfile }: ProfileModalProps) {
+export function ProfileModal({ open, onOpenChangeAction, profile: initialProfile }: ProfileModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState(initialProfile);
 
@@ -31,7 +31,7 @@ export function ProfileModal({ open, onOpenChange, profile: initialProfile }: Pr
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChangeAction}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex justify-between items-center">

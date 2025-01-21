@@ -24,7 +24,7 @@ export function ProfileButton() {
       </Button>
       <ProfileModal
         open={open}
-        onOpenChange={setOpen}
+        onOpenChangeAction={setOpen}
         profile={profile}
       />
     </>
