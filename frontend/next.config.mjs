@@ -10,6 +10,25 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    // Enable streaming SSR
+    serverActions: true,
+  },
+  // Ensure proper handling of environment variables
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  },
+  // Optimize for AWS deployment
+  poweredByHeader: false,
+  generateEtags: true,
+  compress: true,
+  // Handle dynamic routes properly
+  async rewrites() {
+    return [];
+  },
 }
 
 export default nextConfig 

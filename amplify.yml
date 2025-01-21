@@ -3,7 +3,7 @@ backend:
   phases:
     build:
       commands:
-        - export SKIP_SSM=true
+        - echo "Loading environment variables"
 frontend:
   phases:
     preBuild:
@@ -13,6 +13,15 @@ frontend:
         - npm ci
     build:
       commands:
+        - echo "Setting up environment for build"
+        - |
+          if [ "${AWS_BRANCH}" = "master" ]; then
+            export NODE_ENV=production
+            echo "Running production build"
+          else
+            echo "Running development build"
+          fi
+        - echo "Using API URL: $NEXT_PUBLIC_API_URL"
         - npm run build
   artifacts:
     baseDirectory: frontend/.next
