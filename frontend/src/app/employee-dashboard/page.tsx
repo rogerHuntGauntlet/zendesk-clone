@@ -1,5 +1,8 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +18,7 @@ import { PersonalStats } from "@/components/stats/PersonalStats";
 import { PerformanceGoals } from "@/components/stats/PerformanceGoals";
 import { TicketResponseDialog } from "@/components/tickets/TicketResponseDialog";
 import { toast } from "@/components/ui/use-toast";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 import {
   Clock,
   Calendar,
@@ -29,7 +33,8 @@ import {
   Video,
   MessageSquare,
   Bell,
-  X
+  X,
+  Users
 } from "lucide-react";
 import { mockEmployee, mockTickets, mockTicketStats, mockPersonalStats, mockPerformanceGoals, mockTicketEvents } from "@/lib/mock-data";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -38,9 +43,6 @@ import { agentService } from "@/lib/agent-services";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Users
-} from "lucide-react";
 
 // Mock current employee ID - in a real app, this would come from auth
 const CURRENT_EMPLOYEE_ID = 'emp-1';
@@ -51,10 +53,10 @@ export default function EmployeeDashboard() {
   const [stats, setStats] = useState<TicketStats | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "">("");
-  const [viewMode, setViewMode] = useState<'list' | 'kanban' | 'timeline'>('list');
+  const [viewMode, setViewMode] = useLocalStorageState<'list' | 'kanban' | 'timeline'>('viewMode', 'list');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [isResponding, setIsResponding] = useState(false);
-  const [focusModeEnabled, setFocusModeEnabled] = useState(false);
+  const [focusModeEnabled, setFocusModeEnabled] = useLocalStorageState<boolean>('focusMode', false);
   const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
   const [queueHealth, setQueueHealth] = useState<number>(100);
   const [showChatPanel, setShowChatPanel] = useState(false);
@@ -71,7 +73,6 @@ export default function EmployeeDashboard() {
         const authData = await api.getCurrentEmployee();
         
         if (authData) {
-          // User is authenticated, load real data
           setEmployee(authData);
           const employeeTickets = await api.getEmployeeTickets(authData.id);
           setTickets(employeeTickets);
@@ -79,7 +80,6 @@ export default function EmployeeDashboard() {
           setStats(employeeStats);
           setIsMockData(false);
         } else {
-          // No authenticated user, load mock data
           setEmployee(mockEmployee);
           setTickets(mockTickets.filter(ticket => ticket.assignedTo === mockEmployee.name));
           setStats(mockTicketStats);
@@ -103,7 +103,6 @@ export default function EmployeeDashboard() {
         };
       } catch (error) {
         console.error('Error loading data:', error);
-        // Fallback to mock data on error
         setEmployee(mockEmployee);
         setTickets(mockTickets.filter(ticket => ticket.assignedTo === mockEmployee.name));
         setStats(mockTicketStats);
@@ -120,6 +119,12 @@ export default function EmployeeDashboard() {
 
     loadData();
   }, []);
+
+  // Save preferences to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('viewMode', viewMode);
+    localStorage.setItem('focusMode', focusModeEnabled.toString());
+  }, [viewMode, focusModeEnabled, localStorage]);
 
   useEffect(() => {
     // Initialize WebSocket connection

@@ -1,5 +1,8 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +23,7 @@ import { SmartQueueFilter } from "@/components/filters/SmartQueueFilter";
 import { KanbanBoard } from "@/components/tickets/KanbanBoard";
 import { TimelineView } from "@/components/tickets/TimelineView";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useLocalStorageState } from "@/hooks/useLocalStorageState";
 
 type SortField = 'priority' | 'date' | 'status' | 'client';
 type SortDirection = 'asc' | 'desc';
@@ -49,13 +53,17 @@ export default function AdminDashboard() {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [viewName, setViewName] = useState("");
-  const [savedViews, setSavedViews] = useState<Array<{name: string, filters: any}>>([]);
+  const [savedViews, setSavedViews] = useLocalStorageState<Array<{name: string, filters: any}>>('savedViews', []);
   const [selectedTab, setSelectedTab] = useState<TabValue>("queue");
   const [isAssigning, setIsAssigning] = React.useState(false);
   const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null);
   const [isResponding, setIsResponding] = React.useState(false);
   const [selectedTicket, setSelectedTicket] = React.useState<Ticket | null>(null);
-  const [teams, setTeams] = useState<Array<{id: string, name: string, focusArea: string, members?: Array<{id: string, name: string, skills: string[]}>}>>([
+  const [viewMode, setViewMode] = useLocalStorageState<ViewMode>('viewMode', 'list');
+  const [ticketEvents, setTicketEvents] = useState<Record<string, TicketEvent[]>>({});
+
+  // Move teams and routing rules to a separate config file or API endpoint later
+  const [teams] = useState([
     {
       id: "team-1",
       name: "Technical Support",
@@ -84,7 +92,8 @@ export default function AdminDashboard() {
       ]
     }
   ]);
-  const [routingRules, setRoutingRules] = useState<Array<{id: string, condition: string, teamId: string, priority: string}>>([
+  
+  const [routingRules] = useState([
     {
       id: "rule-1",
       condition: "Category contains 'Technical' OR Subject contains 'bug'",
@@ -104,8 +113,6 @@ export default function AdminDashboard() {
       priority: "Low"
     }
   ]);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [ticketEvents, setTicketEvents] = useState<Record<string, TicketEvent[]>>({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -118,7 +125,6 @@ export default function AdminDashboard() {
         // Load ticket events for timeline view
         const events: Record<string, TicketEvent[]> = {};
         for (const ticket of ticketData) {
-          // Simulate ticket events since API doesn't have this endpoint
           events[ticket.id] = [{
             id: '1',
             type: 'created',
@@ -127,12 +133,6 @@ export default function AdminDashboard() {
           }];
         }
         setTicketEvents(events);
-
-        // Load saved views from localStorage
-        const savedViewsData = localStorage.getItem('savedViews');
-        if (savedViewsData) {
-          setSavedViews(JSON.parse(savedViewsData));
-        }
       } catch (error) {
         console.error('Error loading data:', error);
       }
@@ -202,9 +202,7 @@ export default function AdminDashboard() {
       }
     };
 
-    const updatedViews = [...savedViews, newView];
-    setSavedViews(updatedViews);
-    localStorage.setItem('savedViews', JSON.stringify(updatedViews));
+    setSavedViews([...savedViews, newView]);
     setViewName("");
   };
 
