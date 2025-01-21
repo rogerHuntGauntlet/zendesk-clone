@@ -10,6 +10,15 @@ frontend:
       commands:
         - cd frontend
         - nvm use 18
+        - |
+          echo "Checking required environment variables..."
+          for var in NEXT_PUBLIC_API_URL NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY; do
+            if [ -z "${!var}" ]; then
+              echo "Warning: $var is not set"
+            else
+              echo "$var is configured"
+            fi
+          done
         - npm ci
     build:
       commands:
@@ -21,7 +30,7 @@ frontend:
           else
           echo "Running development build";
           fi
-        - 'echo "Using API URL: ${NEXT_PUBLIC_API_URL}"'
+        - 'echo "Using API URL: ${NEXT_PUBLIC_API_URL:-not_set}"'
         - npm run build
   artifacts:
     baseDirectory: frontend/.next
