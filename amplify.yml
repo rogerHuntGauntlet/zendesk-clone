@@ -13,14 +13,8 @@ frontend:
         - npm ci
     build:
       commands:
-        - |
-          if [ -n "$NEXT_PUBLIC_API_URL" ]; then
-            echo "Building with production environment"
-            NODE_ENV=production npm run build
-          else
-            echo "Warning: Environment variables not found"
-            NODE_ENV=production npm run build
-          fi
+        - cp .env.production .env
+        - NODE_ENV=production npm run build
   artifacts:
     baseDirectory: frontend/.next
     files:
