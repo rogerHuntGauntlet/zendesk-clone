@@ -1,0 +1,5 @@
+{
+  "tables": [ALL_TABLES_DATA],
+  "indexes": [ALL_INDEXES_DATA],
+  "constraints": [ALL_CONSTRAINTS_DATA]
+} 
