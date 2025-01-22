@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import * as db from "@/lib/db";
 import type { Project } from "@/types";
 
-export default function EmployeeDashboard() {
+// Separate client component that uses useSearchParams
+function DashboardContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams?.get('projectId') ?? null;
   const { user } = useAuth();
@@ -73,9 +74,6 @@ export default function EmployeeDashboard() {
           return;
         }
         setEmployee(employeeData);
-      } else {
-        // Load general employee data
-        // You can add this later if needed
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -91,73 +89,84 @@ export default function EmployeeDashboard() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-lg">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (projectId && (!project || !employee)) {
+    return (
+      <div className="p-8">
+        <Card className="p-6">
+          <CardTitle className="mb-4">Error Loading Dashboard</CardTitle>
+          <CardDescription>
+            Unable to load project dashboard data. Please try refreshing the page.
+          </CardDescription>
+          <Button
+            className="mt-4"
+            onClick={() => window.location.reload()}
+          >
+            Refresh Page
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">
+            {project ? `${project.name} - Employee Dashboard` : 'Employee Dashboard'}
+          </h1>
+          {employee && (
+            <p className="text-gray-600">
+              Welcome back, {employee.name}
+            </p>
+          )}
+        </div>
+        <Button
+          onClick={() => router.push('/project-admin')}
+          variant="outline"
+        >
+          Back to Projects
+        </Button>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Project Overview</CardTitle>
+            <CardDescription>Key metrics and information</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {/* Add project metrics */}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function EmployeeDashboard() {
+  return (
+    <DashboardLayout>
+      <Suspense fallback={
         <div className="flex items-center justify-center h-screen">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
             <p className="text-lg">Loading dashboard...</p>
           </div>
         </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (projectId && (!project || !employee)) {
-    return (
-      <DashboardLayout>
-        <div className="p-8">
-          <Card className="p-6">
-            <CardTitle className="mb-4">Error Loading Dashboard</CardTitle>
-            <CardDescription>
-              Unable to load project dashboard data. Please try refreshing the page.
-            </CardDescription>
-            <Button
-              className="mt-4"
-              onClick={() => window.location.reload()}
-            >
-              Refresh Page
-            </Button>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">
-              {project ? `${project.name} - Employee Dashboard` : 'Employee Dashboard'}
-            </h1>
-            {employee && (
-              <p className="text-gray-600">
-                Welcome back, {employee.name}
-              </p>
-            )}
-          </div>
-          <Button
-            onClick={() => router.push('/project-admin')}
-            variant="outline"
-          >
-            Back to Projects
-          </Button>
-        </div>
-
-        {/* Add your project-specific dashboard content here */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Overview</CardTitle>
-              <CardDescription>Key metrics and information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Add project metrics */}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      }>
+        <DashboardContent />
+      </Suspense>
     </DashboardLayout>
   );
 } 
