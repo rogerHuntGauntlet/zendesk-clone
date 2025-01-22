@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import * as db from "@/lib/db";
 import type { Project } from "@/types";
 
-export default function EmployeeDashboard() {
-  const searchParams = useSearchParams();
-  const projectId = searchParams?.get('projectId') ?? null;
+export default function ProjectEmployeeDashboard() {
+  const params = useParams();
+  const projectId = params?.projectId as string;
   const { user } = useAuth();
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
@@ -22,7 +22,16 @@ export default function EmployeeDashboard() {
     name: string;
     email: string;
     role: string;
+    department: string;
+    specialties: string[];
     activeTickets: number;
+    performance: {
+      resolvedTickets: number;
+      avgResponseTime: string;
+      customerRating: number;
+    };
+    createdAt: string;
+    lastLogin: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -44,44 +53,39 @@ export default function EmployeeDashboard() {
   }, [user, projectId]);
 
   const loadData = async () => {
-    if (!user) return;
+    if (!user || !projectId) return;
 
     try {
-      if (projectId) {
-        // Load project-specific data
-        const projectData = await db.getProject(projectId);
-        if (!projectData) {
-          toast({
-            title: "Project Not Found",
-            description: "The requested project could not be found.",
-            variant: "destructive"
-          });
-          router.push('/project-admin');
-          return;
-        }
-        setProject(projectData);
-
-        // Load employee data for this project
-        const employeeData = await db.getEmployeeForProject(projectId, user.id);
-        if (!employeeData) {
-          toast({
-            title: "Access Denied",
-            description: "You do not have access to this project.",
-            variant: "destructive"
-          });
-          router.push('/project-admin');
-          return;
-        }
-        setEmployee(employeeData);
-      } else {
-        // Load general employee data
-        // You can add this later if needed
+      // Load project data
+      const projectData = await db.getProject(projectId);
+      if (!projectData) {
+        toast({
+          title: "Project Not Found",
+          description: "The requested project could not be found.",
+          variant: "destructive"
+        });
+        router.push('/project-admin');
+        return;
       }
+      setProject(projectData);
+
+      // Load employee data
+      const employeeData = await db.getEmployeeForProject(projectId, user.id);
+      if (!employeeData) {
+        toast({
+          title: "Access Denied",
+          description: "You do not have access to this project.",
+          variant: "destructive"
+        });
+        router.push('/project-admin');
+        return;
+      }
+      setEmployee(employeeData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading project data:', error);
       toast({
         title: "Error",
-        description: "Failed to load dashboard data. Please try again.",
+        description: "Failed to load project data. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -95,14 +99,14 @@ export default function EmployeeDashboard() {
         <div className="flex items-center justify-center h-screen">
           <div className="text-center space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="text-lg">Loading dashboard...</p>
+            <p className="text-lg">Loading project dashboard...</p>
           </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  if (projectId && (!project || !employee)) {
+  if (!project || !employee) {
     return (
       <DashboardLayout>
         <div className="p-8">
@@ -129,13 +133,11 @@ export default function EmployeeDashboard() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">
-              {project ? `${project.name} - Employee Dashboard` : 'Employee Dashboard'}
+              {project.name} - Employee Dashboard
             </h1>
-            {employee && (
-              <p className="text-gray-600">
-                Welcome back, {employee.name}
-              </p>
-            )}
+            <p className="text-gray-600">
+              Welcome back, {employee.name}
+            </p>
           </div>
           <Button
             onClick={() => router.push('/project-admin')}

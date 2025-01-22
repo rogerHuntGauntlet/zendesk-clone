@@ -69,49 +69,127 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string, role: string) => {
     try {
-      console.log('Signing in with role:', role);
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.log('Sign in error:', error.message);
-        // If user doesn't exist, create them
-        if (error.message.includes('Invalid login credentials')) {
-          await signUp(email, password, role);
-          // Try signing in again after creating the account
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (signInError) throw signInError;
-          
-          console.log('Auto sign in successful, user:', signInData.user);
-          console.log('User metadata:', signInData.user?.user_metadata);
-          setUser(signInData.user);
-          return;
-        }
-        throw error;
+      if (signInError) throw signInError;
+
+      // Check if user exists in zen_users table
+      const { data: userData, error: userError } = await supabase
+        .from('zen_users')
+        .select('*')
+        .eq('id', signInData.user.id)
+        .single();
+
+      if (userError && userError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw userError;
       }
 
-      // Update user metadata with role if it's not set
-      if (!data.user.user_metadata?.role) {
-        const { data: updateData, error: updateError } = await supabase.auth.updateUser({
-          data: { role }
-        });
-        if (updateError) throw updateError;
-        console.log('Updated user metadata:', updateData.user.user_metadata);
-        setUser(updateData.user);
-      } else {
-        // Verify the user is logging in through the correct portal
-        if (data.user.user_metadata.role !== role) {
-          throw new Error(`Please use the ${data.user.user_metadata.role.replace('_', ' ')} login portal`);
-        }
-        console.log('Sign in successful, user:', data.user);
-        console.log('User metadata:', data.user?.user_metadata);
-        setUser(data.user);
+      // If user doesn't exist in zen_users, create them
+      if (!userData) {
+        const { error: createError } = await supabase
+          .from('zen_users')
+          .insert({
+            id: signInData.user.id,
+            email: email,
+            name: email.split('@')[0], // Default name from email
+            role: role
+          });
+
+        if (createError) throw createError;
       }
+
+      // Check if user has the role-specific entry
+      if (role === 'employee') {
+        const { data: employeeData, error: employeeCheckError } = await supabase
+          .from('zen_employees')
+          .select('*')
+          .eq('user_id', signInData.user.id)
+          .single();
+
+        if (employeeCheckError && employeeCheckError.code !== 'PGRST116') {
+          throw employeeCheckError;
+        }
+
+        if (!employeeData) {
+          const { error: employeeError } = await supabase
+            .from('zen_employees')
+            .insert({
+              user_id: signInData.user.id,
+              department: 'General',
+              specialties: [],
+              active_tickets: 0,
+              performance: {
+                customerRating: 0,
+                avgResponseTime: '0h 0m',
+                resolvedTickets: 0
+              }
+            });
+
+          if (employeeError) throw employeeError;
+        }
+      } else if (role === 'client') {
+        const { data: clientData, error: clientCheckError } = await supabase
+          .from('zen_clients')
+          .select('*')
+          .eq('user_id', signInData.user.id)
+          .single();
+
+        if (clientCheckError && clientCheckError.code !== 'PGRST116') {
+          throw clientCheckError;
+        }
+
+        if (!clientData) {
+          const { error: clientError } = await supabase
+            .from('zen_clients')
+            .insert({
+              user_id: signInData.user.id,
+              plan: 'standard',
+              company: 'Unknown',
+              total_tickets: 0,
+              active_tickets: 0
+            });
+
+          if (clientError) throw clientError;
+        }
+      } else if (role === 'project-admin') {
+        const { data: adminData, error: adminCheckError } = await supabase
+          .from('zen_project_admins')
+          .select('*')
+          .eq('user_id', signInData.user.id)
+          .single();
+
+        if (adminCheckError && adminCheckError.code !== 'PGRST116') {
+          throw adminCheckError;
+        }
+
+        if (!adminData) {
+          const { error: adminError } = await supabase
+            .from('zen_project_admins')
+            .insert({
+              user_id: signInData.user.id,
+              permissions: [],
+              projects: []
+            });
+
+          if (adminError) throw adminError;
+        }
+      }
+
+      // Update user metadata with current role
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { role }
+      });
+
+      if (updateError) throw updateError;
+
+      // Set the user in context with current role
+      setUser({
+        ...signInData.user,
+        user_metadata: { ...signInData.user.user_metadata, role }
+      });
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;

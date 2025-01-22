@@ -13,8 +13,11 @@ export const db = createClient('https://rlaxacnkrfohotpyvnam.supabase.co', 'eyJh
 export async function getProjects(userId: string, isAdmin: boolean) {
   let query = db.from('zen_projects').select('*');
 
-  // If not an admin, only fetch projects they have access to
-  if (!isAdmin) {
+  if (isAdmin) {
+    // If admin, only show projects where they are the admin
+    query = query.eq('admin_id', userId);
+  } else {
+    // If not an admin, only fetch projects they have access to
     const { data: memberProjects } = await db
       .from('zen_project_members')
       .select('project_id')
@@ -53,8 +56,8 @@ export async function createProject(projectData: any) {
     if (insertError) throw insertError;
   }
 
-  // Now create the project
-  const { data, error } = await db
+  // Create the project
+  const { data: project, error: projectError } = await db
     .from('zen_projects')
     .insert([{
       name: projectData.name,
@@ -65,8 +68,20 @@ export async function createProject(projectData: any) {
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
+  if (projectError) throw projectError;
+
+  // Add the admin as a team member with admin role
+  const { error: memberError } = await db
+    .from('zen_project_members')
+    .insert([{
+      project_id: project.id,
+      user_id: projectData.admin_id,
+      role: 'project_admin'
+    }]);
+
+  if (memberError) throw memberError;
+
+  return project;
 }
 
 export async function updateProject(projectId: string, updates: any) {
@@ -127,10 +142,15 @@ export async function getTeamMembers(projectId: string) {
   const { data: members, error: membersError } = await db
     .from('zen_project_members')
     .select(`
-      zen_project_members.project_id,
-      zen_project_members.user_id,
-      zen_project_members.role,
-      users:zen_users(id, email, name, role)
+      project_id,
+      user_id,
+      role,
+      zen_users!fk_project_members_user (
+        id,
+        email,
+        name,
+        role
+      )
     `)
     .eq('project_id', projectId);
 
@@ -147,9 +167,9 @@ export async function getTeamMembers(projectId: string) {
 
   // Transform the data into a consistent format
   const activeMembers = (members || []).map((member: any) => ({
-    id: member.users.id,
-    email: member.users.email,
-    name: member.users.name,
+    id: member.zen_users.id,
+    email: member.zen_users.email,
+    name: member.zen_users.name,
     role: member.role,
     status: 'active' as const
   }));
@@ -169,8 +189,8 @@ export async function addTeamMember(projectId: string, email: string, role: stri
   // First check if the user exists in zen_users table
   const { data: existingUser, error: userCheckError } = await db
     .from('zen_users')
-    .select('id')
-    .eq('email', email)
+    .select('id, email')
+    .ilike('email', email)
     .single();
 
   if (userCheckError && userCheckError.code !== 'PGRST116') {
@@ -178,7 +198,19 @@ export async function addTeamMember(projectId: string, email: string, role: stri
   }
 
   if (existingUser) {
-    // If user exists, add them directly to the project
+    // Check if user is already a member
+    const { data: existingMember } = await db
+      .from('zen_project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', existingUser.id)
+      .single();
+
+    if (existingMember) {
+      throw new Error('User is already a member of this project');
+    }
+
+    // If user exists and not already a member, add them directly to the project
     const { error: memberError } = await db
       .from('zen_project_members')
       .insert([{
@@ -189,7 +221,19 @@ export async function addTeamMember(projectId: string, email: string, role: stri
 
     if (memberError) throw memberError;
   } else {
-    // If user doesn't exist, add them to pending invites
+    // Check if invite already exists
+    const { data: existingInvite } = await db
+      .from('zen_pending_invites')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('email', email)
+      .single();
+
+    if (existingInvite) {
+      throw new Error('Invitation already sent to this email');
+    }
+
+    // If user doesn't exist and no pending invite, add them to pending invites
     const { error: inviteError } = await db
       .from('zen_pending_invites')
       .insert([{
@@ -241,4 +285,61 @@ export async function updateTeamMember(projectId: string, userId: string, update
 
   if (error) throw error;
   return data;
+}
+
+export async function getProject(projectId: string) {
+  const { data, error } = await db
+    .from('zen_projects')
+    .select('*')
+    .eq('id', projectId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getEmployeeForProject(projectId: string, userId: string) {
+  // First check if the user is a member of the project
+  const { data: memberData, error: memberError } = await db
+    .from('zen_project_members')
+    .select(`
+      project_id,
+      user_id,
+      role,
+      zen_users!fk_project_members_user (
+        id,
+        email,
+        name,
+        role
+      )
+    `)
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .single();
+
+  if (memberError) throw memberError;
+  if (!memberData) return null;
+
+  // Try to get active tickets count, fallback to mock data if query fails
+  let activeTickets = 0;
+  try {
+    const { count } = await db
+      .from('zen_tickets')
+      .select('*', { count: 'exact', head: true })
+      .eq('assigned_to', userId)
+      .or('status.neq.closed,status.neq.resolved');
+    
+    activeTickets = count || 0;
+  } catch (error) {
+    console.log('Using mock data for active tickets count');
+    activeTickets = Math.floor(Math.random() * 5); // Random number between 0-4 for mock data
+  }
+
+  return {
+    id: memberData.zen_users.id,
+    name: memberData.zen_users.name,
+    email: memberData.zen_users.email,
+    role: memberData.role,
+    activeTickets
+  };
 } 

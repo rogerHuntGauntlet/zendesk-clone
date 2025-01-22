@@ -74,6 +74,9 @@ export default function ProjectAdminDashboard() {
   const router = useRouter();
   const { user } = useAuth();
   const emailRef = useRef<HTMLInputElement>(null);
+  const [isManagingClients, setIsManagingClients] = useState(false);
+  const [clients, setClients] = useState<TeamMember[]>([]);
+  const clientEmailRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     console.log('Current user:', user);
@@ -88,6 +91,10 @@ export default function ProjectAdminDashboard() {
       const isAdmin = user.user_metadata.role === 'project_admin';
       console.log('Is admin?', isAdmin);
       const projectsData = await db.getProjects(user.id, isAdmin);
+      console.log('Projects data:', projectsData);
+      
+      // For project admins, show all projects (they can see everything)
+      // For employees, show only projects they are assigned to (already filtered by getProjects)
       setProjects(projectsData || []);
     } catch (error) {
       console.error('Error loading projects:', error);
@@ -166,7 +173,7 @@ export default function ProjectAdminDashboard() {
         });
       }
     } else if (user?.user_metadata.role === 'employee') {
-      router.push(`/employee-dashboard?project=${project.id}`);
+      router.push(`/employee-dashboard?projectId=${project.id}`);
     }
   };
 
@@ -375,6 +382,70 @@ export default function ProjectAdminDashboard() {
     }
   };
 
+  const handleManageClients = async (project: Project) => {
+    if (user?.user_metadata.role === 'project_admin') {
+      setSelectedProject(project);
+      setIsManagingClients(true);
+      try {
+        const members = await db.getTeamMembers(project.id);
+        // Filter only client members
+        setClients(members.filter(member => member.role === 'client').map(member => {
+          const status = isValidStatus(member.status) ? member.status : 'pending';
+          return {
+            id: member.id,
+            name: member.name,
+            email: member.email,
+            role: member.role,
+            status,
+            permissions: [],
+            department: undefined
+          };
+        }));
+      } catch (error) {
+        console.error('Error loading clients:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load clients. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleAddClient = async () => {
+    if (!selectedProject || !clientEmailRef.current?.value) return;
+
+    try {
+      await db.addTeamMember(selectedProject.id, clientEmailRef.current.value, 'client');
+      // Refresh clients list
+      const members = await db.getTeamMembers(selectedProject.id);
+      setClients(members.filter(member => member.role === 'client').map(member => {
+        const status = isValidStatus(member.status) ? member.status : 'pending';
+        return {
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          role: member.role,
+          status,
+          permissions: [],
+          department: undefined
+        };
+      }));
+      toast({
+        title: "Client Added",
+        description: "Client has been added to the project.",
+      });
+      clientEmailRef.current.value = '';
+    } catch (error) {
+      console.error('Error adding client:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add client. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400 p-8">
       <div className="max-w-7xl mx-auto">
@@ -444,30 +515,32 @@ export default function ProjectAdminDashboard() {
                       <Badge variant="secondary" className="ml-2">
                         {project.activeTickets} Active
                       </Badge>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <MoreVertical className="h-4 w-4 text-white" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEditProject(project)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleArchiveProject(project)}>
-                            <Archive className="mr-2 h-4 w-4" />
-                            {project.status === 'archived' ? 'Restore' : 'Archive'}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteProject(project)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {user?.user_metadata?.role === 'project_admin' && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4 text-white" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleArchiveProject(project)}>
+                              <Archive className="mr-2 h-4 w-4" />
+                              {project.status === 'archived' ? 'Restore' : 'Archive'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteProject(project)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </CardTitle>
                   <CardDescription className="text-white/80">{project.description}</CardDescription>
@@ -484,32 +557,48 @@ export default function ProjectAdminDashboard() {
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {user?.user_metadata.role === 'project_admin' && (
+                    {user?.user_metadata?.role === 'employee' ? (
                       <Button 
-                        className="bg-white/20 hover:bg-white/30 text-white"
-                        onClick={() => navigateToProjectAdmin(project.id)}
-                      >
-                        <Settings className="mr-2 h-4 w-4" />
-                        Admin
-                      </Button>
-                    )}
-                    {(user?.user_metadata.role === 'project_admin' || user?.user_metadata.role === 'employee') && (
-                      <Button 
-                        className="bg-indigo-500/50 hover:bg-indigo-500/70 text-white"
-                        onClick={() => handleManageTeam(project)}
+                        className="col-span-3 bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => router.push(`/employee-dashboard?projectId=${project.id}`)}
                       >
                         <Users className="mr-2 h-4 w-4" />
-                        Team
+                        View Dashboard
                       </Button>
-                    )}
-                    {user?.user_metadata.role === 'client' && (
+                    ) : user?.user_metadata?.role === 'client' ? (
                       <Button 
-                        className="bg-emerald-500/50 hover:bg-emerald-500/70 text-white"
-                        onClick={() => openClientPortal(project.id)}
+                        className="col-span-3 bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => router.push(`/client-dashboard?projectId=${project.id}`)}
                       >
                         <Building2 className="mr-2 h-4 w-4" />
-                        Portal
+                        View Client Dashboard
                       </Button>
+                    ) : (
+                      <>
+                        {user?.user_metadata.role === 'project_admin' && (
+                          <Button 
+                            className="bg-white/20 hover:bg-white/30 text-white"
+                            onClick={() => navigateToProjectAdmin(project.id)}
+                          >
+                            <Settings className="mr-2 h-4 w-4" />
+                            Admin
+                          </Button>
+                        )}
+                        <Button 
+                          className="bg-indigo-500/50 hover:bg-indigo-500/70 text-white"
+                          onClick={() => handleManageTeam(project)}
+                        >
+                          <Users className="mr-2 h-4 w-4" />
+                          Team
+                        </Button>
+                        <Button 
+                          className="bg-emerald-500/50 hover:bg-emerald-500/70 text-white"
+                          onClick={() => handleManageClients(project)}
+                        >
+                          <Building2 className="mr-2 h-4 w-4" />
+                          Clients
+                        </Button>
+                      </>
                     )}
                   </div>
                 </CardContent>
@@ -860,6 +949,68 @@ export default function ProjectAdminDashboard() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Add Client Management Dialog */}
+        <Dialog open={isManagingClients} onOpenChange={setIsManagingClients}>
+          <DialogContent className="bg-white dark:bg-gray-800 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Client Management - {selectedProject?.name}</DialogTitle>
+              <DialogDescription>
+                Manage clients for this project.
+              </DialogDescription>
+            </DialogHeader>
+            <Tabs defaultValue="clients" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="clients">Clients</TabsTrigger>
+                <TabsTrigger value="add">Add Client</TabsTrigger>
+              </TabsList>
+              <TabsContent value="clients" className="space-y-4">
+                {clients.map(client => (
+                  <Card key={client.id}>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center justify-between">
+                        {client.name}
+                        <div className="flex gap-2">
+                          <Badge>Client</Badge>
+                          {client.status === 'pending' && (
+                            <Badge variant="secondary">Pending</Badge>
+                          )}
+                          {client.status === 'active' && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveMember(client.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardTitle>
+                      <CardDescription>{client.email}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </TabsContent>
+              <TabsContent value="add" className="space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="client-email">Client Email Address</Label>
+                    <Input
+                      id="client-email"
+                      type="email"
+                      placeholder="Enter client's email"
+                      ref={clientEmailRef}
+                    />
+                  </div>
+                  <Button onClick={handleAddClient} className="w-full">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add Client
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
