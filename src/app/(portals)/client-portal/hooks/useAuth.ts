@@ -1,7 +1,7 @@
 "use client";
 
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-import { createClient } from '../lib/supabase';
 import { useState, useEffect } from 'react';
 import { validatePassword } from '../utils/validation';
 
@@ -12,9 +12,9 @@ interface RegisterData {
   company: string;
 }
 
-export const useAuth = () => {
+export function useAuth() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClientComponentClient();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,72 +36,88 @@ export const useAuth = () => {
     };
   }, []);
 
-  const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
+  const signIn = async (email: string, password: string, rememberMe: boolean) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     });
 
     if (error) throw error;
 
-    // Check if email is verified
-    if (data.user && !data.user.email_confirmed_at) {
-      throw new Error('Please verify your email before signing in. Check your inbox for the verification link.');
+    // Check if user exists in zen_users
+    const { data: userData, error: userError } = await supabase
+      .from('zen_users')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    // If user doesn't exist in zen_users, create them
+    if (!userData && !userError) {
+      const { error: createUserError } = await supabase
+        .from('zen_users')
+        .insert([
+          {
+            id: data.user.id,
+            email: email,
+            name: email.split('@')[0], // Default name from email
+            role: 'client'
+          }
+        ]);
+
+      if (createUserError) {
+        console.error('Error creating user record:', createUserError);
+        throw new Error('Failed to create user record');
+      }
+    } else if (userError && userError.code !== 'PGRST116') {
+      console.error('Error checking user status:', userError);
+      throw new Error('Failed to verify user status');
     }
 
     return data;
   };
 
-  const signUp = async (registerData: RegisterData) => {
-    // Validate password
-    const { isValid, errors } = validatePassword(registerData.password);
-    if (!isValid) {
-      throw new Error(errors.join('\n'));
-    }
-
-    const { data: existingClient } = await supabase
-      .from('zen_clients')
-      .select('*')
-      .eq('company', registerData.company)
+  const signUp = async (formData: RegisterData) => {
+    const { data: existingUser } = await supabase
+      .from('zen_users')
+      .select('id')
+      .eq('email', formData.email)
       .single();
 
-    if (existingClient) {
-      throw new Error('A client with this company name already exists');
+    if (existingUser) {
+      throw new Error('An account with this email already exists');
     }
 
     const { data, error } = await supabase.auth.signUp({
-      email: registerData.email,
-      password: registerData.password,
+      email: formData.email,
+      password: formData.password,
       options: {
         data: {
-          name: registerData.name,
+          name: formData.name,
           role: 'client',
         },
-        emailRedirectTo: `${window.location.origin}/client-portal`,
+        emailRedirectTo: `${window.location.origin}/client-portal/login`,
       },
     });
 
     if (error) throw error;
 
     // Create client record
-    if (data.user) {
-      const { error: clientError } = await supabase
-        .from('zen_clients')
-        .insert([
-          {
-            user_id: data.user.id,
-            company: registerData.company,
-            plan: 'standard',
-            total_tickets: 0,
-            active_tickets: 0,
-          },
-        ]);
+    const { error: clientError } = await supabase
+      .from('zen_clients')
+      .insert([
+        {
+          user_id: data.user?.id,
+          company: formData.company,
+          plan: 'standard',
+          total_tickets: 0,
+          active_tickets: 0,
+        },
+      ]);
 
-      if (clientError) {
-        // If client record creation fails, we should clean up the auth user
-        await supabase.auth.admin.deleteUser(data.user.id);
-        throw clientError;
-      }
+    if (clientError) {
+      // If client record creation fails, we should clean up the auth user
+      await supabase.auth.admin.deleteUser(data.user!.id);
+      throw clientError;
     }
 
     return data;
@@ -111,19 +127,13 @@ export const useAuth = () => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/client-portal/reset-password`,
     });
-    
+
     if (error) throw error;
   };
 
-  const updatePassword = async (newPassword: string) => {
-    // Validate new password
-    const { isValid, errors } = validatePassword(newPassword);
-    if (!isValid) {
-      throw new Error(errors.join('\n'));
-    }
-
+  const updatePassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({
-      password: newPassword,
+      password: password,
     });
 
     if (error) throw error;
@@ -135,24 +145,13 @@ export const useAuth = () => {
     router.push('/client-portal/login');
   };
 
-  // Add function to check if user is in an active session
-  const checkSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.push('/client-portal/login');
-      return false;
-    }
-    return true;
-  };
-
   return {
-    user,
-    loading,
     signIn,
     signUp,
     signOut,
     resetPassword,
     updatePassword,
-    checkSession,
+    user,
+    loading,
   };
-}; 
+}

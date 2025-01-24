@@ -1,9 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+"use client";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { validatePassword } from '../utils/validation';
 
 interface RegisterData {
   email: string;
@@ -13,6 +13,29 @@ interface RegisterData {
 }
 
 export function useAuth() {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setLoading(false);
+    };
+
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const signIn = async (email: string, password: string, rememberMe: boolean) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -73,6 +96,7 @@ export function useAuth() {
           role: 'employee',
           department: formData.department,
         },
+        emailRedirectTo: `${window.location.origin}/employee-portal/login`,
       },
     });
 
@@ -85,11 +109,14 @@ export function useAuth() {
         {
           user_id: data.user?.id,
           department: formData.department,
-          status: 'active',
         },
       ]);
 
-    if (employeeError) throw employeeError;
+    if (employeeError) {
+      // If employee record creation fails, clean up the auth user
+      await supabase.auth.admin.deleteUser(data.user!.id);
+      throw employeeError;
+    }
 
     return data;
   };
@@ -110,15 +137,10 @@ export function useAuth() {
     if (error) throw error;
   };
 
-  const getCurrentUser = async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
-  };
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    router.push('/employee-portal/login');
   };
 
   return {
@@ -127,6 +149,7 @@ export function useAuth() {
     signOut,
     resetPassword,
     updatePassword,
-    getCurrentUser,
+    user,
+    loading,
   };
-} 
+}
