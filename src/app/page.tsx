@@ -1,10 +1,33 @@
 "use client";
 
-import { Shield, Users, Building2, ArrowRight, CheckCircle2, BarChart3, MessageSquare, Zap, Clock, Star, ChevronRight } from "lucide-react";
+import { Shield, Users, Building2, ArrowRight, CheckCircle2, BarChart3, MessageSquare, Zap, Clock, Star, ChevronRight, Settings, Layout, Workflow } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function Home() {
   const router = useRouter();
+  const [activeFeature, setActiveFeature] = useState('support');
+
+  const features = {
+    support: {
+      title: "Customer Support Hub",
+      description: "Transform your customer service with AI-powered ticketing, live chat, and knowledge base integration.",
+      icon: MessageSquare,
+      color: "from-purple-500 to-pink-500"
+    },
+    crm: {
+      title: "Intelligent CRM",
+      description: "Track leads, manage relationships, and automate your sales pipeline with customizable workflows.",
+      icon: Users,
+      color: "from-blue-500 to-cyan-500"
+    },
+    team: {
+      title: "Team Collaboration",
+      description: "Unite your team with project management, task tracking, and real-time collaboration tools.",
+      icon: Building2,
+      color: "from-green-500 to-emerald-500"
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
@@ -21,6 +44,12 @@ export default function Home() {
             >
               Knowledge Base
             </button>
+            <button
+              onClick={() => router.push('/admin-portal/login')}
+              className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-full transition-all"
+            >
+              Get Started
+            </button>
           </div>
         </div>
       </nav>
@@ -28,78 +57,96 @@ export default function Home() {
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
-            Support Made <span className="text-purple-400">Simple</span>
+          <div className="inline-flex items-center bg-white/10 rounded-full px-4 py-2 mb-6">
+            <Star className="w-4 h-4 text-yellow-400 mr-2" />
+            <span className="text-white/90 text-sm">Trusted by 10,000+ teams worldwide</span>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
+            One Platform,<br />Endless Possibilities
           </h1>
           <p className="text-xl text-white/80 mb-12 max-w-2xl mx-auto">
-            Streamline your customer support workflow with our integrated platform for teams, clients, and administrators.
+            Adapt OHFdesk to your workflow. Whether it's customer support, CRM, or team collaboration, 
+            we flex to match your unique business needs.
           </p>
-          
-          {/* Portal Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {/* Admin Portal */}
+
+          {/* Interactive Feature Showcase */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mt-12">
+            {Object.entries(features).map(([key, feature]) => (
+              <div
+                key={key}
+                onClick={() => setActiveFeature(key)}
+                className={`cursor-pointer transition-all duration-300 ${
+                  activeFeature === key
+                    ? 'bg-gradient-to-r ' + feature.color + ' scale-105'
+                    : 'bg-white/10 hover:bg-white/20'
+                } backdrop-blur-sm p-6 rounded-xl text-white`}
+              >
+                <feature.icon className="w-8 h-8 mb-4" />
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-sm text-white/70">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Customization Features */}
+          <div className="mt-20 grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-white/5 p-6 rounded-xl backdrop-blur-sm">
+              <Settings className="w-6 h-6 text-purple-400 mb-4" />
+              <h4 className="text-lg font-semibold text-white mb-2">Custom Workflows</h4>
+              <p className="text-sm text-white/70">Design your perfect process flow</p>
+            </div>
+            <div className="bg-white/5 p-6 rounded-xl backdrop-blur-sm">
+              <Layout className="w-6 h-6 text-purple-400 mb-4" />
+              <h4 className="text-lg font-semibold text-white mb-2">Flexible UI</h4>
+              <p className="text-sm text-white/70">Customize your workspace view</p>
+            </div>
+            <div className="bg-white/5 p-6 rounded-xl backdrop-blur-sm">
+              <Zap className="w-6 h-6 text-purple-400 mb-4" />
+              <h4 className="text-lg font-semibold text-white mb-2">API Access</h4>
+              <p className="text-sm text-white/70">Integrate with your tools</p>
+            </div>
+            <div className="bg-white/5 p-6 rounded-xl backdrop-blur-sm">
+              <Shield className="w-6 h-6 text-purple-400 mb-4" />
+              <h4 className="text-lg font-semibold text-white mb-2">Role-Based Access</h4>
+              <p className="text-sm text-white/70">Control team permissions</p>
+            </div>
+          </div>
+
+          {/* Enhanced CTA */}
+          <div className="mt-16 flex flex-col items-center gap-4">
             <button
               onClick={() => router.push('/admin-portal/login')}
-              className="bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all p-6 rounded-xl text-white flex flex-col items-center gap-4 group"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 
+                transition-all text-white font-bold py-4 px-8 rounded-full flex items-center gap-2 group"
             >
-              <div className="p-4 rounded-full bg-purple-500/20 group-hover:bg-purple-500/30 transition-colors">
-                <Shield className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-semibold">Admin Portal</h2>
-              <p className="text-sm text-white/70">
-                Manage projects and teams
-              </p>
+              Start Customizing
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
-
-            {/* Employee Portal */}
-            <button
-              onClick={() => router.push('/employee-portal/login')}
-              className="bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all p-6 rounded-xl text-white flex flex-col items-center gap-4 group"
-            >
-              <div className="p-4 rounded-full bg-blue-500/20 group-hover:bg-blue-500/30 transition-colors">
-                <Users className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-semibold">Employee Portal</h2>
-              <p className="text-sm text-white/70">
-                Handle support tickets
-              </p>
-            </button>
-
-            {/* Client Portal */}
-            <button
-              onClick={() => router.push('/client-portal/login')}
-              className="bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all p-6 rounded-xl text-white flex flex-col items-center gap-4 group"
-            >
-              <div className="p-4 rounded-full bg-green-500/20 group-hover:bg-green-500/30 transition-colors">
-                <Building2 className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-semibold">Client Portal</h2>
-              <p className="text-sm text-white/70">
-                Get support and track tickets
-              </p>
-            </button>
+            <p className="text-white/60 text-sm">No credit card required • Free 14-day trial</p>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 px-4 bg-white/5">
+      {/* Stats Section with Animation */}
+      <section className="py-20 px-4 bg-white/5 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <p className="text-4xl font-bold text-purple-400 mb-2">99.9%</p>
+            <div className="text-center transform hover:scale-105 transition-transform">
+              <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">99.9%</p>
               <p className="text-white/70">Uptime</p>
             </div>
-            <div className="text-center">
-              <p className="text-4xl font-bold text-purple-400 mb-2">2M+</p>
+            <div className="text-center transform hover:scale-105 transition-transform">
+              <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">2M+</p>
               <p className="text-white/70">Tickets Resolved</p>
             </div>
-            <div className="text-center">
-              <p className="text-4xl font-bold text-purple-400 mb-2">10k+</p>
+            <div className="text-center transform hover:scale-105 transition-transform">
+              <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">10k+</p>
               <p className="text-white/70">Active Users</p>
             </div>
-            <div className="text-center">
-              <p className="text-4xl font-bold text-purple-400 mb-2">15min</p>
+            <div className="text-center transform hover:scale-105 transition-transform">
+              <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">15min</p>
               <p className="text-white/70">Avg. Response Time</p>
             </div>
           </div>
@@ -343,7 +390,7 @@ export default function Home() {
         </div>
         <div className="border-t border-white/10 pt-8">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-white/60">© 2024 OHFdesk. All rights reserved.</p>
+            <p className="text-white/60"> 2024 OHFdesk. All rights reserved.</p>
             <div className="flex gap-6">
               <button className="text-white/60 hover:text-white">Terms</button>
               <button className="text-white/60 hover:text-white">Privacy</button>

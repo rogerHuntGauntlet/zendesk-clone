@@ -359,17 +359,36 @@ export default function ProjectDetailPage() {
 
       if (!userData || userData.length === 0) {
         // User doesn't exist, create invite
-        const { error: inviteError } = await supabase
+        const { data: invite, error: inviteError } = await supabase
           .from('zen_pending_invites')
           .insert({
             email,
             project_id: params.id,
             role,
             status: 'pending'
-          });
+          })
+          .select()
+          .single();
 
         if (inviteError) throw inviteError;
-        toast.success(`Invitation sent to ${email}`);
+
+        // Send invite email
+        try {
+          await fetch('/api/send-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email,
+              projectName: project?.name || '',
+              inviteType: role,
+              inviteToken: invite.id
+            }),
+          });
+          toast.success(`Invitation sent to ${email}`);
+        } catch (emailError) {
+          console.error('Error sending invite email:', emailError);
+          toast.error('Invite created but email failed to send');
+        }
       } else {
         // Check if user is already a member
         const { data: existingMember, error: memberCheckError } = await supabase
