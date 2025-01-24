@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  // Skip auth check for login and reset-password pages
+  const path = request.nextUrl.pathname;
+  if (path.includes('/login') || path.includes('/reset-password')) {
+    return NextResponse.next();
+  }
+
   const response = NextResponse.next();
   const supabase = createMiddlewareClient({ req: request, res: response });
   const { data: { session } } = await supabase.auth.getSession();
@@ -10,7 +16,6 @@ export async function middleware(request: NextRequest) {
   // Check if user is authenticated
   if (!session) {
     // Determine which portal they're trying to access
-    const path = request.nextUrl.pathname;
     let loginPath = '/login';
     
     if (path.startsWith('/admin-portal')) {
