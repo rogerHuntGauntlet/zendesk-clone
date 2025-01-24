@@ -18,13 +18,13 @@ export default function KnowledgeBaseLayout({
       try {
         const { data: { user }, error } = await supabase.auth.getUser();
         if (error || !user) {
-          router.push('/login');
+          router.push('/admin-portal/login');
           return;
         }
         setLoading(false);
       } catch (error) {
         console.error('Error checking auth:', error);
-        router.push('/login');
+        router.push('/admin-portal/login');
       }
     };
 
@@ -40,4 +40,4 @@ export default function KnowledgeBaseLayout({
   }
 
   return <>{children}</>;
-} 
+}

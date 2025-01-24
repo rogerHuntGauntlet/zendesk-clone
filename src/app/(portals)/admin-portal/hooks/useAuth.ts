@@ -102,6 +102,14 @@ export function useAuth() {
     if (error) throw error;
   };
 
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    });
+
+    if (error) throw error;
+  };
+
   const getCurrentUser = async () => {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) throw error;
@@ -116,8 +124,9 @@ export function useAuth() {
   return {
     signIn,
     signUp,
-    resetPassword,
-    getCurrentUser,
     signOut,
+    resetPassword,
+    updatePassword,
+    getCurrentUser,
   };
 } 

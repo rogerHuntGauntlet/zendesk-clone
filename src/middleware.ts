@@ -9,9 +9,20 @@ export async function middleware(request: NextRequest) {
 
   // Check if user is authenticated
   if (!session) {
-    // Store the original URL they were trying to visit
-    const redirectUrl = new URL('/login', request.url);
-    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
+    // Determine which portal they're trying to access
+    const path = request.nextUrl.pathname;
+    let loginPath = '/login';
+    
+    if (path.startsWith('/admin-portal')) {
+      loginPath = '/admin-portal/login';
+    } else if (path.startsWith('/employee-portal')) {
+      loginPath = '/employee-portal/login';
+    } else if (path.startsWith('/client-portal')) {
+      loginPath = '/client-portal/login';
+    }
+
+    // Redirect to the appropriate login page
+    const redirectUrl = new URL(loginPath, request.url);
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -26,4 +37,4 @@ export const config = {
     '/client-portal/:path*',
     // Add other protected routes here
   ]
-}; 
+};

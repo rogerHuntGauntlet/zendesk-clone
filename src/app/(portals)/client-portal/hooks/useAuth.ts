@@ -77,7 +77,7 @@ export const useAuth = () => {
           name: registerData.name,
           role: 'client',
         },
-        emailRedirectTo: `${window.location.origin}/client-portal/login`,
+        emailRedirectTo: `${window.location.origin}/client-portal`,
       },
     });
 
