@@ -14,7 +14,9 @@ import { Progress } from "../../components/ui/progress";
 import { NewTicketModal } from "../../components/ui/new-ticket-modal";
 import TicketTimeline from "../../../admin-portal/components/ui/project-detail/TicketTimeline";
 import { Dialog } from "@headlessui/react";
-import { FiBook } from "react-icons/fi";
+import { FiBook, FiDownload } from "react-icons/fi";
+import { Checkbox } from "../../components/ui/checkbox";
+import { ProjectHeader } from "../components/ProjectHeader";
 
 type ProjectDetails = {
   id: string;
@@ -103,7 +105,7 @@ interface TicketDetails {
 export default function ProjectDetails() {
   const params = useParams();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +115,8 @@ export default function ProjectDetails() {
   const [selectedTicketDetails, setSelectedTicketDetails] = useState<TicketDetails | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (user && params.id) {
@@ -304,6 +308,63 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleTicketSelect = (ticketId: string, isSelected: boolean) => {
+    const newSelected = new Set(selectedTickets);
+    if (isSelected) {
+      newSelected.add(ticketId);
+    } else {
+      newSelected.delete(ticketId);
+    }
+    setSelectedTickets(newSelected);
+  };
+
+  const handleSelectAll = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedTickets(new Set(project?.tickets.map(t => t.id) || []));
+    } else {
+      setSelectedTickets(new Set());
+    }
+  };
+
+  const handleExportTickets = async () => {
+    if (selectedTickets.size === 0) return;
+    
+    setIsExporting(true);
+    try {
+      const response = await fetch('/api/tickets/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ticketIds: Array.from(selectedTickets)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export tickets');
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link and click it
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'ticket_export.zip';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error exporting tickets:', error);
+      // You might want to show an error toast here
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-green-50 flex items-center justify-center">
@@ -336,62 +397,12 @@ export default function ProjectDetails() {
 
   return (
     <div className="min-h-screen bg-green-50">
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={() => router.push('/client-portal/projects')}
-          className="text-violet-400 hover:text-violet-300 mb-4 flex items-center gap-2"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          Back to projects
-        </button>
-        <div className="flex justify-between items-center mb-2">
-          <h1 className="text-3xl font-bold text-white">{project.name}</h1>
-          <button
-            onClick={() => router.push('/knowledge-base')}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors"
-          >
-            <FiBook className="w-5 h-5" />
-            Learning Center
-          </button>
-        </div>
-        <p className="text-white/60">{project.description}</p>
-      </div>
-
-      <nav className="bg-green-700 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center gap-8">
-              <Button
-                variant="ghost"
-                className="text-green-100 hover:text-white hover:bg-green-600"
-                onClick={() => router.push('/client-portal/projects')}
-              >
-                ← Back to Projects
-              </Button>
-              <h1 className="text-xl font-semibold text-white">{project.name}</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                className="bg-green-600 text-white hover:bg-green-500 border-green-500"
-                onClick={() => setIsNewTicketModalOpen(true)}
-              >
-                New Ticket
-              </Button>
-              <Button
-                variant="outline"
-                className="text-green-100 hover:text-white hover:bg-green-600 border-green-500"
-                onClick={() => router.push(`/client-portal/chat?project=${project.id}`)}
-              >
-                Live Chat
-              </Button>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <ProjectHeader
+        title={project.name}
+        projectId={project.id}
+        onSignOut={signOut}
+        userEmail={user.email || ""}
+      />
 
       {/* New Ticket Modal */}
       <NewTicketModal
@@ -515,6 +526,38 @@ export default function ProjectDetails() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-medium text-green-800">Tickets</h2>
               <div className="flex items-center gap-4">
+                {/* Selection controls */}
+                {viewMode === 'list' && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedTickets.size === project.tickets.length}
+                      onCheckedChange={handleSelectAll}
+                    />
+                    <span className="text-sm text-green-600">
+                      {selectedTickets.size} selected
+                    </span>
+                  </div>
+                )}
+
+                {/* Export button */}
+                {selectedTickets.size > 0 && (
+                  <Button
+                    variant="outline"
+                    className="border-green-200 text-green-700 hover:bg-green-50"
+                    onClick={handleExportTickets}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? (
+                      <>Exporting...</>
+                    ) : (
+                      <>
+                        <FiDownload className="w-4 h-4 mr-2" />
+                        Export ({selectedTickets.size})
+                      </>
+                    )}
+                  </Button>
+                )}
+
                 {/* View Toggle */}
                 <div className="flex items-center bg-green-50 rounded-lg p-1">
                   <button
@@ -559,57 +602,24 @@ export default function ProjectDetails() {
                 {project.tickets.map((ticket) => (
                   <Card 
                     key={ticket.id} 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => fetchTicketDetails(ticket.id)}
+                    className="relative cursor-pointer hover:shadow-md transition-shadow"
                   >
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <CardTitle className="text-base">{ticket.title}</CardTitle>
-                          <CardDescription>
-                            Updated {format(new Date(ticket.updated_at), "MMM d, h:mm a")}
-                          </CardDescription>
-                        </div>
-                        <Badge 
-                          variant={ticket.status === 'resolved' ? 'default' : 'outline'}
-                          className={
-                            ticket.status === 'resolved' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'border-green-200 text-green-700'
-                          }
-                        >
-                          {ticket.status}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-green-600">Priority: {ticket.priority}</span>
-                        {ticket.assigned_to && (
-                          <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                              <span className="text-green-700 text-xs">{ticket.assigned_to.name[0]}</span>
-                            </div>
-                            <span className="text-green-600">{ticket.assigned_to.name}</span>
+                    <div className="absolute top-4 right-4 z-10">
+                      <Checkbox
+                        checked={selectedTickets.has(ticket.id)}
+                        onCheckedChange={(checked: boolean) => handleTicketSelect(ticket.id, checked)}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      />
+                    </div>
+                    <div onClick={() => fetchTicketDetails(ticket.id)}>
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-base">{ticket.title}</CardTitle>
+                            <CardDescription>
+                              Updated {format(new Date(ticket.updated_at), "MMM d, h:mm a")}
+                            </CardDescription>
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {project.tickets.map((ticket) => (
-                  <div 
-                    key={ticket.id}
-                    className="py-3 cursor-pointer hover:bg-green-50 transition-colors"
-                    onClick={() => fetchTicketDetails(ticket.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-sm font-medium text-green-800 truncate">{ticket.title}</h3>
                           <Badge 
                             variant={ticket.status === 'resolved' ? 'default' : 'outline'}
                             className={
@@ -620,27 +630,79 @@ export default function ProjectDetails() {
                           >
                             {ticket.status}
                           </Badge>
-                          <span className="text-xs text-green-600">
-                            Priority: {ticket.priority}
-                          </span>
                         </div>
-                        <div className="mt-1 flex items-center gap-4 text-xs text-green-600">
-                          <span>Updated {format(new Date(ticket.updated_at), "MMM d, h:mm a")}</span>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-green-600">Priority: {ticket.priority}</span>
                           {ticket.assigned_to && (
-                            <div className="flex items-center gap-1">
-                              <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center">
-                                <span className="text-green-700 text-[10px]">{ticket.assigned_to.name[0]}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                                <span className="text-green-700 text-xs">{ticket.assigned_to.name[0]}</span>
                               </div>
-                              <span>{ticket.assigned_to.name}</span>
+                              <span className="text-green-600">{ticket.assigned_to.name}</span>
                             </div>
                           )}
                         </div>
+                      </CardContent>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {project.tickets.map((ticket) => (
+                  <div 
+                    key={ticket.id}
+                    className="py-3 hover:bg-green-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={selectedTickets.has(ticket.id)}
+                        onCheckedChange={(checked: boolean) => handleTicketSelect(ticket.id, checked)}
+                        onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      />
+                      <div 
+                        className="flex-1 cursor-pointer"
+                        onClick={() => fetchTicketDetails(ticket.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-3">
+                              <h3 className="text-sm font-medium text-green-800 truncate">{ticket.title}</h3>
+                              <Badge 
+                                variant={ticket.status === 'resolved' ? 'default' : 'outline'}
+                                className={
+                                  ticket.status === 'resolved' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'border-green-200 text-green-700'
+                                }
+                              >
+                                {ticket.status}
+                              </Badge>
+                              <span className="text-xs text-green-600">
+                                Priority: {ticket.priority}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-4 text-xs text-green-600">
+                              <span>Updated {format(new Date(ticket.updated_at), "MMM d, h:mm a")}</span>
+                              {ticket.assigned_to && (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center">
+                                    <span className="text-green-700 text-[10px]">{ticket.assigned_to.name[0]}</span>
+                                  </div>
+                                  <span>{ticket.assigned_to.name}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <button className="p-2 text-green-600 hover:text-green-700">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
-                      <button className="p-2 text-green-600 hover:text-green-700">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
                     </div>
                   </div>
                 ))}

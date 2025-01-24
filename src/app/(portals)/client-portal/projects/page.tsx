@@ -11,6 +11,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from ".
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { toast } from "react-hot-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { LineChart, BarChart, Wallet, MessageCircle, HelpCircle } from "lucide-react";
+import { ChatButton } from "../components/ui/chat-button"; // Import ChatButton component
 
 type ProjectMember = {
   user_id: string;
@@ -424,286 +428,345 @@ export default function ClientProjects() {
             <span className="text-green-600">•</span>
             <span className="text-sm text-green-700">Logged in as {user.email}</span>
           </div>
-          <h2 className="text-lg font-medium text-green-900 mb-2">Welcome to Your Client Dashboard</h2>
-          <p className="text-green-700 mb-4">
-            As a client, you have access to view and manage your project details, track tickets, and communicate with your project team.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-            <div className="flex items-start gap-2">
-              <div className="mt-1 w-5 h-5 text-green-600">✓</div>
-              <div>
-                <p className="font-medium text-green-800">View Project Details</p>
-                <p className="text-green-600">Access project information, team members, and progress</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="mt-1 w-5 h-5 text-green-600">✓</div>
-              <div>
-                <p className="font-medium text-green-800">Track Tickets</p>
-                <p className="text-green-600">Monitor active support tickets and their status</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="mt-1 w-5 h-5 text-green-600">✓</div>
-              <div>
-                <p className="font-medium text-green-800">Team Communication</p>
-                <p className="text-green-600">Interact with project admins and support staff</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          
+          <Tabs defaultValue="tickets" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 mb-8">
+              <TabsTrigger value="tickets">Tickets</TabsTrigger>
+              <TabsTrigger value="quick-actions">Quick Actions</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="help">Help & Support</TabsTrigger>
+            </TabsList>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Quick Actions Panel */}
-          <div className="bg-white shadow-sm rounded-lg p-6 border border-green-100">
-            <h3 className="text-lg font-medium text-green-900 mb-4">Quick Actions</h3>
-            <div className="space-y-3">
-              <Button 
-                variant="outline" 
-                className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50"
-                onClick={() => router.push('/client-portal/new-ticket')}
-              >
-                <span className="mr-2">➕</span>
-                Create New Support Ticket
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50"
-                onClick={() => router.push('/client-portal/chat')}
-              >
-                <span className="mr-2">💬</span>
-                Start Live Chat Support
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50"
-                onClick={() => router.push('/client-portal/knowledge-base')}
-              >
-                <span className="mr-2">📚</span>
-                Browse Knowledge Base
-              </Button>
-            </div>
-          </div>
+            <TabsContent value="tickets">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Active Tickets</CardTitle>
+                  <CardDescription>View and manage your support tickets</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-6 flex flex-col sm:flex-row gap-4">
+                    <Input
+                      type="text"
+                      placeholder="Search tickets..."
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      className="max-w-xs border-green-200 focus:ring-green-500 focus:border-green-500"
+                    />
+                    <Select value={sortField} onValueChange={handleSortFieldChange}>
+                      <SelectTrigger className="max-w-xs border-green-200">
+                        <SelectValue placeholder="Sort by..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="created_at">Date Created</SelectItem>
+                        <SelectItem value="name">Name</SelectItem>
+                        <SelectItem value="active_tickets">Active Tickets</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      variant="outline"
+                      className="border-green-200 text-green-700 hover:bg-green-50"
+                    >
+                      {sortOrder === "asc" ? "↑" : "↓"}
+                    </Button>
+                  </div>
 
-          {/* Support Status */}
-          <div className="bg-white shadow-sm rounded-lg p-6 border border-green-100">
-            <h3 className="text-lg font-medium text-green-900 mb-4">Support Status</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-green-700">Average Response Time</span>
-                  <Badge variant="outline" className="bg-green-50">2-4 hours</Badge>
-                </div>
-                <div className="h-2 bg-green-100 rounded-full">
-                  <div className="h-2 bg-green-500 rounded-full w-3/4"></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-green-700">Support Team Status</span>
-                  <Badge variant="outline" className="bg-green-50">Online</Badge>
-                </div>
-                <p className="text-sm text-green-600">4 team members available</p>
-              </div>
-              <div className="pt-2">
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-center border-green-200 text-green-700 hover:bg-green-50"
-                  onClick={() => router.push('/client-portal/support-schedule')}
-                >
-                  View Support Schedule
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Help & Resources */}
-          <div className="bg-white shadow-sm rounded-lg p-6 border border-green-100">
-            <h3 className="text-lg font-medium text-green-900 mb-4">Help & Resources</h3>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                <div className="text-green-700 mt-1">📱</div>
-                <div>
-                  <h4 className="font-medium text-green-800">Mobile App</h4>
-                  <p className="text-sm text-green-600 mb-2">Access your projects on the go</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="border-green-200 text-green-700 hover:bg-green-100"
-                  >
-                    Download App
-                  </Button>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                <div className="text-green-700 mt-1">🎓</div>
-                <div>
-                  <h4 className="font-medium text-green-800">Video Tutorials</h4>
-                  <p className="text-sm text-green-600 mb-2">Learn how to use the platform</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="border-green-200 text-green-700 hover:bg-green-100"
-                  >
-                    Watch Tutorials
-                  </Button>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50"
-              >
-                <span className="mr-2">📞</span>
-                Schedule a Training Call
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <Input
-            type="text"
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="max-w-xs border-green-200 focus:ring-green-500 focus:border-green-500"
-          />
-          <Select value={sortField} onValueChange={handleSortFieldChange}>
-            <SelectTrigger className="max-w-xs border-green-200">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="created_at">Date Created</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="active_tickets">Active Tickets</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-            variant="outline"
-            className="border-green-200 text-green-700 hover:bg-green-50"
-          >
-            {sortOrder === "asc" ? "↑" : "↓"}
-          </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-            <span className="ml-3 text-green-700">Loading your projects...</span>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="text-center py-12">
-            <h3 className="text-lg font-medium text-green-900">No projects found</h3>
-            <p className="mt-2 text-green-600">
-              {searchQuery ? "Try adjusting your search" : "You are not assigned to any projects yet."}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {currentProjects.map((project) => {
-                const status = project.status === 'pending' ? 'pending' : getProjectStatus(project);
-                return (
-                  <div
-                    key={project.id}
-                    className={`bg-white overflow-hidden shadow-sm rounded-lg hover:shadow-md transition-shadow border border-green-100 ${
-                      project.status === 'pending' ? 'opacity-90' : ''
-                    }`}
-                  >
-                    <div className="px-4 py-5 sm:p-6">
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-medium text-green-900 truncate">
-                          {project.name}
-                        </h3>
-                        <Badge 
-                          variant={project.status === 'pending' ? 'secondary' : getStatusColor(status)} 
-                          className={project.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+                  {/* Projects Grid */}
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {currentProjects.map((project) => {
+                      const status = project.status === 'pending' ? 'pending' : getProjectStatus(project);
+                      return (
+                        <div
+                          key={project.id}
+                          className={`bg-white overflow-hidden shadow-sm rounded-lg hover:shadow-md transition-shadow border border-green-100 ${
+                            project.status === 'pending' ? 'opacity-90' : ''
+                          }`}
                         >
-                          {project.status === 'pending' ? 'Pending Invite' : status.charAt(0).toUpperCase() + status.slice(1)}
-                        </Badge>
+                          <div className="px-4 py-5 sm:p-6">
+                            <div className="flex justify-between items-start">
+                              <h3 className="text-lg font-medium text-green-900 truncate">
+                                {project.name}
+                              </h3>
+                              <Badge 
+                                variant={project.status === 'pending' ? 'secondary' : getStatusColor(status)} 
+                                className={project.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+                              >
+                                {project.status === 'pending' ? 'Pending Invite' : status.charAt(0).toUpperCase() + status.slice(1)}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-sm text-green-600 line-clamp-2">
+                              {project.description}
+                            </p>
+                            <div className="mt-4 space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-green-600">Active Tickets</span>
+                                <span className="font-medium text-green-800">{project.active_tickets}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-green-600">Team Size</span>
+                                <span className="font-medium text-green-800">{project.members.length} members</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-green-600">Created</span>
+                                <span className="font-medium text-green-800">
+                                  {format(new Date(project.created_at), "MMM d, yyyy")}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-green-600">Project Admin</span>
+                                <span className="font-medium text-green-800">{project.admin[0]?.name}</span>
+                              </div>
+                            </div>
+                            {project.status === 'pending' ? (
+                              <div className="mt-6">
+                                <Button
+                                  onClick={() => handleAcceptInvite(project.id)}
+                                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  Accept Invite
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="mt-6">
+                                <Button
+                                  onClick={() => router.push(`/client-portal/projects/${project.id}`)}
+                                  className="w-full border-green-200 text-green-700 hover:bg-green-50"
+                                  variant="outline"
+                                >
+                                  View Project
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="quick-actions">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                  <CardDescription>Common tasks and shortcuts</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50 h-auto py-4"
+                    onClick={() => router.push('/client-portal/new-ticket')}
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-3 text-2xl">➕</span>
+                      <div>
+                        <div className="font-medium">Create New Ticket</div>
+                        <div className="text-sm text-green-600">Submit a new support request</div>
                       </div>
-                      <p className="mt-1 text-sm text-green-600 line-clamp-2">
-                        {project.description}
-                      </p>
-                      <div className="mt-4 space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">Active Tickets</span>
-                          <span className="font-medium text-green-800">{project.active_tickets}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">Team Size</span>
-                          <span className="font-medium text-green-800">{project.members.length} members</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">Created</span>
-                          <span className="font-medium text-green-800">
-                            {format(new Date(project.created_at), "MMM d, yyyy")}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">Project Admin</span>
-                          <span className="font-medium text-green-800">{project.admin[0]?.name}</span>
-                        </div>
+                    </div>
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50 h-auto py-4"
+                    onClick={() => router.push('/client-portal/knowledge-base')}
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-3 text-2xl">📚</span>
+                      <div>
+                        <div className="font-medium">Knowledge Base</div>
+                        <div className="text-sm text-green-600">Browse help articles and guides</div>
                       </div>
-                      {project.status === 'pending' ? (
-                        <div className="mt-6">
-                          <Button
-                            onClick={() => handleAcceptInvite(project.id)}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            Accept Invite
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="mt-6">
-                          <Button
-                            onClick={() => router.push(`/client-portal/projects/${project.id}`)}
-                            className="w-full border-green-200 text-green-700 hover:bg-green-50"
-                            variant="outline"
-                          >
-                            View Project
-                          </Button>
-                        </div>
-                      )}
+                    </div>
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50 h-auto py-4"
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-3 text-2xl">📅</span>
+                      <div>
+                        <div className="font-medium">Schedule Meeting</div>
+                        <div className="text-sm text-green-600">Book time with support team</div>
+                      </div>
+                    </div>
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-50 h-auto py-4"
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-3 text-2xl">📊</span>
+                      <div>
+                        <div className="font-medium">Generate Report</div>
+                        <div className="text-sm text-green-600">Download activity summary</div>
+                      </div>
+                    </div>
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="analytics">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Analytics Overview</CardTitle>
+                  <CardDescription>Track your support metrics and activity</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <LineChart className="h-5 w-5 text-green-600" />
+                        <h4 className="font-medium text-green-800">Response Time</h4>
+                      </div>
+                      <div className="text-2xl font-semibold text-green-900">2.4 hrs</div>
+                      <div className="text-sm text-green-600">Avg. first response</div>
+                    </div>
+
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BarChart className="h-5 w-5 text-green-600" />
+                        <h4 className="font-medium text-green-800">Resolution Rate</h4>
+                      </div>
+                      <div className="text-2xl font-semibold text-green-900">94%</div>
+                      <div className="text-sm text-green-600">Within SLA</div>
+                    </div>
+
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Wallet className="h-5 w-5 text-green-600" />
+                        <h4 className="font-medium text-green-800">Active Tickets</h4>
+                      </div>
+                      <div className="text-2xl font-semibold text-green-900">12</div>
+                      <div className="text-sm text-green-600">Currently open</div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {totalPages > 1 && (
-              <div className="mt-6 flex justify-center space-x-2">
-                <Button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="border-green-200 text-green-700 hover:bg-green-50 disabled:text-green-300"
-                >
-                  Previous
-                </Button>
-                <span className="px-4 py-2 bg-white rounded-md text-green-700 border border-green-200">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  className="border-green-200 text-green-700 hover:bg-green-50 disabled:text-green-300"
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </>
-        )}
+                  {/* Placeholder for charts */}
+                  <div className="space-y-6">
+                    <div className="h-64 bg-green-50 rounded-lg flex items-center justify-center">
+                      <p className="text-green-600">Ticket Volume Trend</p>
+                    </div>
+                    <div className="h-64 bg-green-50 rounded-lg flex items-center justify-center">
+                      <p className="text-green-600">Resolution Time Distribution</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="help">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Help & Support Resources</CardTitle>
+                  <CardDescription>Get assistance and learn more about our platform</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-green-50 p-6 rounded-lg">
+                      <h4 className="text-lg font-medium text-green-800 mb-4">Documentation</h4>
+                      <div className="space-y-4">
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">📖</span>
+                          User Guide
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">🎥</span>
+                          Video Tutorials
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">❓</span>
+                          FAQs
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="bg-green-50 p-6 rounded-lg">
+                      <h4 className="text-lg font-medium text-green-800 mb-4">Contact Support</h4>
+                      <div className="space-y-4">
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">💬</span>
+                          Live Chat
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">📞</span>
+                          Schedule a Call
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">📧</span>
+                          Email Support
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2 bg-green-50 p-6 rounded-lg">
+                      <h4 className="text-lg font-medium text-green-800 mb-4">Training & Onboarding</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">🎓</span>
+                          Get Started Guide
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">👥</span>
+                          Book Training Session
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start text-left border-green-200 text-green-700 hover:bg-green-100"
+                        >
+                          <span className="mr-2">📱</span>
+                          Mobile App Guide
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
       </main>
+
+      <ChatButton projects={filteredProjects} /> // Add ChatButton component
+
+      <style jsx global>{`
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+          100% { transform: translateY(0px); }
+        }
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 } 

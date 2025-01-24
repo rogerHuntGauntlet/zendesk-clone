@@ -6,22 +6,8 @@
           "table_name": "zen_activities",
           "columns": [
             {
-              "column_name": "description",
+              "column_name": "type",
               "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "project_id",
-              "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -34,6 +20,13 @@
               "character_maximum_length": null
             },
             {
+              "column_name": "project_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "user_id",
               "data_type": "uuid",
               "column_default": null,
@@ -41,9 +34,16 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "type",
+              "column_name": "description",
               "data_type": "text",
               "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -53,16 +53,16 @@
           "table_name": "zen_admins",
           "columns": [
             {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
+              "column_name": "permissions",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::text[]",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "permissions",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::text[]",
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -79,24 +79,10 @@
           "table_name": "zen_article_categories",
           "columns": [
             {
-              "column_name": "article_count",
-              "data_type": "integer",
-              "column_default": "0",
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "name",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "description",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -107,9 +93,23 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
+              "column_name": "description",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "name",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "article_count",
+              "data_type": "integer",
+              "column_default": "0",
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -126,9 +126,16 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "article_id",
-              "data_type": "uuid",
+              "column_name": "comment",
+              "data_type": "text",
               "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -140,17 +147,10 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "comment",
-              "data_type": "text",
+              "column_name": "article_id",
+              "data_type": "uuid",
               "column_default": null,
-              "is_nullable": "YES",
+              "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
@@ -166,10 +166,10 @@
           "table_name": "zen_assessment_questions",
           "columns": [
             {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
+              "column_name": "answer_type",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
@@ -188,13 +188,6 @@
             },
             {
               "column_name": "question",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "answer_type",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
@@ -220,6 +213,13 @@
               "column_default": "now()",
               "is_nullable": "YES",
               "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
             }
           ]
         },
@@ -227,10 +227,10 @@
           "table_name": "zen_assessments",
           "columns": [
             {
-              "column_name": "description",
-              "data_type": "text",
+              "column_name": "passing_score",
+              "data_type": "integer",
               "column_default": null,
-              "is_nullable": "YES",
+              "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
@@ -241,13 +241,6 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "created_at",
               "data_type": "timestamp with time zone",
               "column_default": "now()",
@@ -255,16 +248,23 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "passing_score",
-              "data_type": "integer",
+              "column_name": "description",
+              "data_type": "text",
               "column_default": null,
-              "is_nullable": "NO",
+              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "title",
+              "data_type": "text",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -276,9 +276,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "title",
-              "data_type": "text",
-              "column_default": null,
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -287,27 +287,6 @@
         {
           "table_name": "zen_clients",
           "columns": [
-            {
-              "column_name": "plan",
-              "data_type": "text",
-              "column_default": "'standard'::text",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "total_tickets",
-              "data_type": "integer",
-              "column_default": "0",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "active_tickets",
-              "data_type": "integer",
-              "column_default": "0",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
             {
               "column_name": "company",
               "data_type": "text",
@@ -319,6 +298,27 @@
               "column_name": "user_id",
               "data_type": "uuid",
               "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "active_tickets",
+              "data_type": "integer",
+              "column_default": "0",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "total_tickets",
+              "data_type": "integer",
+              "column_default": "0",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "plan",
+              "data_type": "text",
+              "column_default": "'standard'::text",
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -335,9 +335,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -349,6 +349,20 @@
               "character_maximum_length": null
             },
             {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "modules",
+              "data_type": "jsonb",
+              "column_default": "'[]'::jsonb",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "progress",
               "data_type": "integer",
               "column_default": "0",
@@ -356,9 +370,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "modules",
-              "data_type": "jsonb",
-              "column_default": "'[]'::jsonb",
+              "column_name": "category",
+              "data_type": "text",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -370,17 +384,71 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "category",
+              "column_name": "description",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            }
+          ]
+        },
+        {
+          "table_name": "zen_email_logs",
+          "columns": [
+            {
+              "column_name": "metadata",
+              "data_type": "jsonb",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "template_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "recipient_email",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "description",
+              "column_name": "subject",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "body",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "status",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "sent_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "error_message",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -393,18 +461,147 @@
           ]
         },
         {
-          "table_name": "zen_employees",
+          "table_name": "zen_email_replies",
           "columns": [
             {
-              "column_name": "department",
+              "column_name": "ai_analysis",
+              "data_type": "jsonb",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "processing_status",
+              "data_type": "text",
+              "column_default": "'pending'::text",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "processed_at",
+              "data_type": "timestamp with time zone",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "received_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "body",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "user_id",
+              "column_name": "subject",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "from_email",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "ticket_id",
               "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "original_email_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "metadata",
+              "data_type": "jsonb",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            }
+          ]
+        },
+        {
+          "table_name": "zen_email_templates",
+          "columns": [
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "name",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "subject_template",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "body_template",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            }
+          ]
+        },
+        {
+          "table_name": "zen_employees",
+          "columns": [
+            {
+              "column_name": "active_tickets",
+              "data_type": "integer",
+              "column_default": "0",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "department",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -417,9 +614,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "active_tickets",
-              "data_type": "integer",
-              "column_default": "0",
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -436,13 +633,6 @@
           "table_name": "zen_knowledge_articles",
           "columns": [
             {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "title",
               "data_type": "text",
               "column_default": null,
@@ -450,9 +640,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "content",
-              "data_type": "text",
-              "column_default": null,
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -485,6 +675,34 @@
               "character_maximum_length": null
             },
             {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "status",
+              "data_type": "text",
+              "column_default": "'draft'::text",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "related_articles",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::uuid[]",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "view_count",
+              "data_type": "integer",
+              "column_default": "0",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "helpful_count",
               "data_type": "integer",
               "column_default": "0",
@@ -499,30 +717,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "view_count",
-              "data_type": "integer",
-              "column_default": "0",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "related_articles",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::uuid[]",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "status",
+              "column_name": "content",
               "data_type": "text",
-              "column_default": "'draft'::text",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -532,27 +729,6 @@
           "table_name": "zen_learning_materials",
           "columns": [
             {
-              "column_name": "path_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "title",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "content",
               "data_type": "text",
               "column_default": null,
@@ -560,9 +736,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "type",
-              "data_type": "text",
-              "column_default": null,
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -583,6 +759,27 @@
             {
               "column_name": "order_index",
               "data_type": "integer",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "path_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "type",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "title",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -593,6 +790,156 @@
           "table_name": "zen_learning_paths",
           "columns": [
             {
+              "column_name": "description",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "order_index",
+              "data_type": "integer",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "name",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "skill_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            }
+          ]
+        },
+        {
+          "table_name": "zen_learning_progress",
+          "columns": [
+            {
+              "column_name": "metadata",
+              "data_type": "jsonb",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "timestamp",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "article_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "type",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            }
+          ]
+        },
+        {
+          "table_name": "zen_messages",
+          "columns": [
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "uuid_generate_v4()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "sender_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "receiver_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "project_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "timestamp",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "content",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "is_read",
+              "data_type": "boolean",
+              "column_default": "false",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "created_at",
               "data_type": "timestamp with time zone",
               "column_default": "now()",
@@ -605,88 +952,6 @@
               "column_default": "now()",
               "is_nullable": "YES",
               "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "order_index",
-              "data_type": "integer",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "skill_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "description",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "name",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            }
-          ]
-        },
-        {
-          "table_name": "zen_learning_progress",
-          "columns": [
-            {
-              "column_name": "article_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "timestamp",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "metadata",
-              "data_type": "jsonb",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "type",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
             }
           ]
         },
@@ -694,16 +959,23 @@
           "table_name": "zen_pending_invites",
           "columns": [
             {
-              "column_name": "status",
-              "data_type": "text",
-              "column_default": "'pending'::text",
+              "column_name": "project_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "project_id",
+              "column_name": "id",
               "data_type": "uuid",
-              "column_default": null,
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "status",
+              "data_type": "text",
+              "column_default": "'pending'::text",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -722,21 +994,14 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "email",
+              "column_name": "role",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "role",
+              "column_name": "email",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
@@ -748,9 +1013,9 @@
           "table_name": "zen_performance_goals",
           "columns": [
             {
-              "column_name": "start_date",
-              "data_type": "timestamp with time zone",
-              "column_default": null,
+              "column_name": "progress",
+              "data_type": "double precision",
+              "column_default": "0",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -766,34 +1031,6 @@
               "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "metric",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "target",
-              "data_type": "double precision",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "progress",
-              "data_type": "double precision",
-              "column_default": "0",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "unit",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -818,8 +1055,36 @@
               "character_maximum_length": null
             },
             {
+              "column_name": "start_date",
+              "data_type": "timestamp with time zone",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "end_date",
               "data_type": "timestamp with time zone",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "metric",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "target",
+              "data_type": "double precision",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "unit",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "YES",
               "character_maximum_length": null
@@ -830,16 +1095,16 @@
           "table_name": "zen_project_admins",
           "columns": [
             {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
+              "column_name": "permissions",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::text[]",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "permissions",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::text[]",
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -856,8 +1121,8 @@
           "table_name": "zen_project_members",
           "columns": [
             {
-              "column_name": "role",
-              "data_type": "text",
+              "column_name": "user_id",
+              "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -870,6 +1135,13 @@
               "character_maximum_length": null
             },
             {
+              "column_name": "project_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "created_at",
               "data_type": "timestamp with time zone",
               "column_default": "now()",
@@ -877,15 +1149,8 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "project_id",
-              "data_type": "uuid",
+              "column_name": "role",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -903,30 +1168,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "name",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "active_tickets",
+              "column_name": "employee_count",
               "data_type": "integer",
               "column_default": "0",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "description",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -938,16 +1182,37 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "employee_count",
+              "column_name": "client_count",
               "data_type": "integer",
               "column_default": "0",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "client_count",
+              "column_name": "active_tickets",
               "data_type": "integer",
               "column_default": "0",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "description",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "name",
+              "data_type": "text",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -957,9 +1222,16 @@
           "table_name": "zen_response_templates",
           "columns": [
             {
-              "column_name": "id",
+              "column_name": "created_by",
               "data_type": "uuid",
-              "column_default": "uuid_generate_v4()",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "content",
+              "data_type": "text",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -971,28 +1243,21 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "content",
-              "data_type": "text",
-              "column_default": null,
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "uuid_generate_v4()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "created_by",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
+              "column_name": "updated_at",
               "data_type": "timestamp with time zone",
               "column_default": "now()",
               "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
-              "column_name": "updated_at",
+              "column_name": "created_at",
               "data_type": "timestamp with time zone",
               "column_default": "now()",
               "is_nullable": "YES",
@@ -1004,21 +1269,28 @@
           "table_name": "zen_shared_notes",
           "columns": [
             {
-              "column_name": "created_by",
+              "column_name": "project_id",
               "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
+              "column_name": "mentions",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::text[]",
+              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
-              "column_name": "project_id",
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_by",
               "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
@@ -1032,17 +1304,10 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "mentions",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::text[]",
-              "is_nullable": "YES",
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
               "character_maximum_length": null
             }
           ]
@@ -1050,55 +1315,6 @@
         {
           "table_name": "zen_shared_templates",
           "columns": [
-            {
-              "column_name": "template_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "effectiveness_usage_count",
-              "data_type": "integer",
-              "column_default": "0",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "reviewed_at",
-              "data_type": "timestamp with time zone",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "reviewed_by",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "approval_comment",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "approval_status",
-              "data_type": "text",
-              "column_default": "'pending'::text",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "shared_with",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::uuid[]",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
             {
               "column_name": "shared_by",
               "data_type": "uuid",
@@ -1114,7 +1330,49 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "effectiveness_avg_response_time",
+              "column_name": "template_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "shared_with",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::uuid[]",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "approval_status",
+              "data_type": "text",
+              "column_default": "'pending'::text",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "approval_comment",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "reviewed_by",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "reviewed_at",
+              "data_type": "timestamp with time zone",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "effectiveness_usage_count",
               "data_type": "integer",
               "column_default": "0",
               "is_nullable": "YES",
@@ -1126,19 +1384,19 @@
               "column_default": "0",
               "is_nullable": "YES",
               "character_maximum_length": null
+            },
+            {
+              "column_name": "effectiveness_avg_response_time",
+              "data_type": "integer",
+              "column_default": "0",
+              "is_nullable": "YES",
+              "character_maximum_length": null
             }
           ]
         },
         {
           "table_name": "zen_shifts",
           "columns": [
-            {
-              "column_name": "project_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
             {
               "column_name": "id",
               "data_type": "uuid",
@@ -1147,8 +1405,36 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "day_of_week",
-              "data_type": "integer",
+              "column_name": "project_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "end_time",
+              "data_type": "time without time zone",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -1161,29 +1447,8 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "end_time",
-              "data_type": "time without time zone",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "user_id",
-              "data_type": "uuid",
+              "column_name": "day_of_week",
+              "data_type": "integer",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -1201,28 +1466,7 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "level",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "category",
+              "column_name": "name",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
@@ -1236,10 +1480,31 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "name",
+              "column_name": "category",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "level",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
               "character_maximum_length": null
             }
           ]
@@ -1274,13 +1539,6 @@
           "table_name": "zen_team_members",
           "columns": [
             {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "team_id",
               "data_type": "uuid",
               "column_default": null,
@@ -1288,9 +1546,16 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "user_id",
+              "column_name": "id",
               "data_type": "uuid",
-              "column_default": null,
+              "column_default": "gen_random_uuid()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "joined_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1302,9 +1567,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "joined_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -1314,7 +1579,7 @@
           "table_name": "zen_team_skills",
           "columns": [
             {
-              "column_name": "name",
+              "column_name": "category",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
@@ -1328,16 +1593,16 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "category",
-              "data_type": "text",
-              "column_default": null,
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "name",
+              "data_type": "text",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -1346,6 +1611,13 @@
         {
           "table_name": "zen_teams",
           "columns": [
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
             {
               "column_name": "name",
               "data_type": "text",
@@ -1375,9 +1647,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1387,13 +1659,6 @@
               "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
             }
           ]
         },
@@ -1401,9 +1666,9 @@
           "table_name": "zen_template_versions",
           "columns": [
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "template_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1415,9 +1680,16 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "template_id",
+              "column_name": "created_by",
               "data_type": "uuid",
               "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1427,19 +1699,19 @@
               "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
-            },
-            {
-              "column_name": "created_by",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
             }
           ]
         },
         {
           "table_name": "zen_ticket_activities",
           "columns": [
+            {
+              "column_name": "media_url",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
             {
               "column_name": "id",
               "data_type": "uuid",
@@ -1450,6 +1722,20 @@
             {
               "column_name": "ticket_id",
               "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "activity_type",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "content",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "YES",
               "character_maximum_length": null
@@ -1469,27 +1755,6 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "media_url",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "content",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "activity_type",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "created_at",
               "data_type": "timestamp with time zone",
               "column_default": "now()",
@@ -1502,16 +1767,9 @@
           "table_name": "zen_ticket_attachments",
           "columns": [
             {
-              "column_name": "type",
+              "column_name": "name",
               "data_type": "text",
               "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1523,9 +1781,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "name",
-              "data_type": "text",
-              "column_default": null,
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1539,6 +1797,13 @@
             {
               "column_name": "size",
               "data_type": "integer",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "type",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -1563,6 +1828,13 @@
           "table_name": "zen_ticket_comments",
           "columns": [
             {
+              "column_name": "attachments",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::text[]",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "id",
               "data_type": "uuid",
               "column_default": "gen_random_uuid()",
@@ -1573,6 +1845,20 @@
               "column_name": "ticket_id",
               "data_type": "uuid",
               "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "type",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "is_internal",
+              "data_type": "boolean",
+              "column_default": "false",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1596,33 +1882,19 @@
               "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
-            },
-            {
-              "column_name": "is_internal",
-              "data_type": "boolean",
-              "column_default": "false",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "attachments",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::text[]",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "type",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
             }
           ]
         },
         {
           "table_name": "zen_ticket_messages",
           "columns": [
+            {
+              "column_name": "has_been_read",
+              "data_type": "boolean",
+              "column_default": "false",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
             {
               "column_name": "id",
               "data_type": "uuid",
@@ -1659,13 +1931,6 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "metadata",
-              "data_type": "jsonb",
-              "column_default": "'{}'::jsonb",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "created_by",
               "data_type": "uuid",
               "column_default": null,
@@ -1673,9 +1938,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "has_been_read",
-              "data_type": "boolean",
-              "column_default": "false",
+              "column_name": "metadata",
+              "data_type": "jsonb",
+              "column_default": "'{}'::jsonb",
               "is_nullable": "YES",
               "character_maximum_length": null
             }
@@ -1685,23 +1950,9 @@
           "table_name": "zen_ticket_summaries",
           "columns": [
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "uuid_generate_v4()",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "ticket_id",
-              "data_type": "uuid",
-              "column_default": null,
+              "column_name": "recordings",
+              "data_type": "jsonb",
+              "column_default": "'[]'::jsonb",
               "is_nullable": "YES",
               "character_maximum_length": null
             },
@@ -1713,9 +1964,30 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "recordings",
-              "data_type": "jsonb",
-              "column_default": "'[]'::jsonb",
+              "column_name": "ticket_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "uuid_generate_v4()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_by_role",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "YES",
               "character_maximum_length": null
             },
@@ -1725,13 +1997,6 @@
               "column_default": null,
               "is_nullable": "YES",
               "character_maximum_length": null
-            },
-            {
-              "column_name": "created_by_role",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
             }
           ]
         },
@@ -1739,10 +2004,38 @@
           "table_name": "zen_tickets",
           "columns": [
             {
-              "column_name": "category",
-              "data_type": "jsonb",
+              "column_name": "project_id",
+              "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "client",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "resolved_at",
+              "data_type": "timestamp with time zone",
+              "column_default": null,
+              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -1753,8 +2046,29 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "resolved_at",
-              "data_type": "timestamp with time zone",
+              "column_name": "category",
+              "data_type": "jsonb",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_by",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "tags",
+              "data_type": "ARRAY",
+              "column_default": "'{}'::text[]",
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "searchable_text",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "YES",
               "character_maximum_length": null
@@ -1774,20 +2088,6 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "description",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "title",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "id",
               "data_type": "uuid",
               "column_default": "gen_random_uuid()",
@@ -1795,9 +2095,30 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "updated_at",
+              "column_name": "description",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "has_feedback",
+              "data_type": "boolean",
+              "column_default": "false",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "last_email_sync_at",
               "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "title",
+              "data_type": "text",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1809,9 +2130,28 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "created_by",
-              "data_type": "uuid",
+              "column_name": "email_thread_id",
+              "data_type": "text",
               "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            }
+          ]
+        },
+        {
+          "table_name": "zen_time_entries",
+          "columns": [
+            {
+              "column_name": "end_time",
+              "data_type": "timestamp with time zone",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -1823,76 +2163,22 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "client",
-              "data_type": "uuid",
-              "column_default": null,
+              "column_name": "billable",
+              "data_type": "boolean",
+              "column_default": "true",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "project_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "searchable_text",
+              "column_name": "category",
               "data_type": "text",
               "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "has_feedback",
-              "data_type": "boolean",
-              "column_default": "false",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "tags",
-              "data_type": "ARRAY",
-              "column_default": "'{}'::text[]",
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            }
-          ]
-        },
-        {
-          "table_name": "zen_time_entries",
-          "columns": [
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "ticket_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "start_time",
-              "data_type": "timestamp with time zone",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "end_time",
-              "data_type": "timestamp with time zone",
+              "column_name": "description",
+              "data_type": "text",
               "column_default": null,
               "is_nullable": "YES",
               "character_maximum_length": null
@@ -1905,37 +2191,30 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "description",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "category",
-              "data_type": "text",
+              "column_name": "start_time",
+              "data_type": "timestamp with time zone",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "billable",
-              "data_type": "boolean",
-              "column_default": "true",
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "ticket_id",
+              "data_type": "uuid",
+              "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
             },
             {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -2006,45 +2285,10 @@
           "table_name": "zen_user_progress",
           "columns": [
             {
-              "column_name": "status",
-              "data_type": "text",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "material_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
               "column_name": "id",
               "data_type": "uuid",
               "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -2060,6 +2304,41 @@
               "column_default": null,
               "is_nullable": "YES",
               "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "status",
+              "data_type": "text",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "material_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
             }
           ]
         },
@@ -2067,10 +2346,31 @@
           "table_name": "zen_user_skills",
           "columns": [
             {
+              "column_name": "certified",
+              "data_type": "boolean",
+              "column_default": "false",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
               "column_name": "id",
               "data_type": "uuid",
               "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -2093,40 +2393,12 @@
               "column_default": "now()",
               "is_nullable": "YES",
               "character_maximum_length": null
-            },
-            {
-              "column_name": "certified",
-              "data_type": "boolean",
-              "column_default": "false",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "YES",
-              "character_maximum_length": null
             }
           ]
         },
         {
           "table_name": "zen_user_timezones",
           "columns": [
-            {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
             {
               "column_name": "id",
               "data_type": "uuid",
@@ -2135,10 +2407,17 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "user_id",
-              "data_type": "uuid",
-              "column_default": null,
-              "is_nullable": "NO",
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
               "character_maximum_length": null
             },
             {
@@ -2149,10 +2428,10 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
+              "column_name": "user_id",
+              "data_type": "uuid",
+              "column_default": null,
+              "is_nullable": "NO",
               "character_maximum_length": null
             }
           ]
@@ -2161,7 +2440,7 @@
           "table_name": "zen_users",
           "columns": [
             {
-              "column_name": "email",
+              "column_name": "name",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
@@ -2189,7 +2468,7 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "name",
+              "column_name": "email",
               "data_type": "text",
               "column_default": null,
               "is_nullable": "NO",
@@ -2208,29 +2487,8 @@
           "table_name": "zen_working_hours",
           "columns": [
             {
-              "column_name": "end_time",
-              "data_type": "time without time zone",
-              "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "updated_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "created_at",
-              "data_type": "timestamp with time zone",
-              "column_default": "now()",
-              "is_nullable": "YES",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "day_of_week",
-              "data_type": "integer",
+              "column_name": "user_id",
+              "data_type": "uuid",
               "column_default": null,
               "is_nullable": "NO",
               "character_maximum_length": null
@@ -2243,16 +2501,9 @@
               "character_maximum_length": null
             },
             {
-              "column_name": "user_id",
-              "data_type": "uuid",
+              "column_name": "day_of_week",
+              "data_type": "integer",
               "column_default": null,
-              "is_nullable": "NO",
-              "character_maximum_length": null
-            },
-            {
-              "column_name": "id",
-              "data_type": "uuid",
-              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             },
@@ -2260,6 +2511,34 @@
               "column_name": "start_time",
               "data_type": "time without time zone",
               "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "end_time",
+              "data_type": "time without time zone",
+              "column_default": null,
+              "is_nullable": "NO",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "created_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "updated_at",
+              "data_type": "timestamp with time zone",
+              "column_default": "now()",
+              "is_nullable": "YES",
+              "character_maximum_length": null
+            },
+            {
+              "column_name": "id",
+              "data_type": "uuid",
+              "column_default": "gen_random_uuid()",
               "is_nullable": "NO",
               "character_maximum_length": null
             }
@@ -2628,6 +2907,31 @@
           "indexdef": "CREATE INDEX idx_projects_name ON public.zen_projects USING btree (name)"
         },
         {
+          "tablename": "zen_messages",
+          "indexname": "zen_messages_pkey",
+          "indexdef": "CREATE UNIQUE INDEX zen_messages_pkey ON public.zen_messages USING btree (id)"
+        },
+        {
+          "tablename": "zen_messages",
+          "indexname": "idx_zen_messages_sender_id",
+          "indexdef": "CREATE INDEX idx_zen_messages_sender_id ON public.zen_messages USING btree (sender_id)"
+        },
+        {
+          "tablename": "zen_messages",
+          "indexname": "idx_zen_messages_receiver_id",
+          "indexdef": "CREATE INDEX idx_zen_messages_receiver_id ON public.zen_messages USING btree (receiver_id)"
+        },
+        {
+          "tablename": "zen_messages",
+          "indexname": "idx_zen_messages_project_id",
+          "indexdef": "CREATE INDEX idx_zen_messages_project_id ON public.zen_messages USING btree (project_id)"
+        },
+        {
+          "tablename": "zen_messages",
+          "indexname": "idx_zen_messages_timestamp",
+          "indexdef": "CREATE INDEX idx_zen_messages_timestamp ON public.zen_messages USING btree (\"timestamp\")"
+        },
+        {
           "tablename": "zen_tickets",
           "indexname": "idx_tickets_text_search",
           "indexdef": "CREATE INDEX idx_tickets_text_search ON public.zen_tickets USING gin (to_tsvector('english'::regconfig, searchable_text))"
@@ -2693,6 +2997,16 @@
           "indexdef": "CREATE INDEX idx_tickets_project ON public.zen_tickets USING btree (project_id)"
         },
         {
+          "tablename": "zen_tickets",
+          "indexname": "zen_tickets_email_thread_id_key",
+          "indexdef": "CREATE UNIQUE INDEX zen_tickets_email_thread_id_key ON public.zen_tickets USING btree (email_thread_id)"
+        },
+        {
+          "tablename": "zen_tickets",
+          "indexname": "idx_tickets_email_thread",
+          "indexdef": "CREATE INDEX idx_tickets_email_thread ON public.zen_tickets USING btree (email_thread_id)"
+        },
+        {
           "tablename": "zen_ticket_comments",
           "indexname": "idx_ticket_comments_ticket_id",
           "indexdef": "CREATE INDEX idx_ticket_comments_ticket_id ON public.zen_ticket_comments USING btree (ticket_id)"
@@ -2716,6 +3030,11 @@
           "tablename": "zen_ticket_attachments",
           "indexname": "idx_ticket_attachments_ticket_id",
           "indexdef": "CREATE INDEX idx_ticket_attachments_ticket_id ON public.zen_ticket_attachments USING btree (ticket_id)"
+        },
+        {
+          "tablename": "zen_email_templates",
+          "indexname": "zen_email_templates_pkey",
+          "indexdef": "CREATE UNIQUE INDEX zen_email_templates_pkey ON public.zen_email_templates USING btree (id)"
         },
         {
           "tablename": "zen_knowledge_articles",
@@ -2798,6 +3117,21 @@
           "indexdef": "CREATE INDEX idx_learning_progress_type ON public.zen_learning_progress USING btree (type)"
         },
         {
+          "tablename": "zen_email_logs",
+          "indexname": "zen_email_logs_pkey",
+          "indexdef": "CREATE UNIQUE INDEX zen_email_logs_pkey ON public.zen_email_logs USING btree (id)"
+        },
+        {
+          "tablename": "zen_email_logs",
+          "indexname": "idx_email_logs_recipient",
+          "indexdef": "CREATE INDEX idx_email_logs_recipient ON public.zen_email_logs USING btree (recipient_email)"
+        },
+        {
+          "tablename": "zen_email_logs",
+          "indexname": "idx_email_logs_sent_at",
+          "indexdef": "CREATE INDEX idx_email_logs_sent_at ON public.zen_email_logs USING btree (sent_at)"
+        },
+        {
           "tablename": "zen_time_entries",
           "indexname": "idx_time_entries_ticket",
           "indexdef": "CREATE INDEX idx_time_entries_ticket ON public.zen_time_entries USING btree (ticket_id)"
@@ -2821,6 +3155,21 @@
           "tablename": "zen_time_entries",
           "indexname": "idx_time_entries_user_date",
           "indexdef": "CREATE INDEX idx_time_entries_user_date ON public.zen_time_entries USING btree (user_id, start_time)"
+        },
+        {
+          "tablename": "zen_email_replies",
+          "indexname": "zen_email_replies_pkey",
+          "indexdef": "CREATE UNIQUE INDEX zen_email_replies_pkey ON public.zen_email_replies USING btree (id)"
+        },
+        {
+          "tablename": "zen_email_replies",
+          "indexname": "idx_email_replies_ticket",
+          "indexdef": "CREATE INDEX idx_email_replies_ticket ON public.zen_email_replies USING btree (ticket_id)"
+        },
+        {
+          "tablename": "zen_email_replies",
+          "indexname": "idx_email_replies_processing_status",
+          "indexdef": "CREATE INDEX idx_email_replies_processing_status ON public.zen_email_replies USING btree (processing_status)"
         },
         {
           "tablename": "zen_courses",
@@ -3688,6 +4037,34 @@
           "foreign_key_reference": null
         },
         {
+          "table_name": "zen_messages",
+          "constraint_name": "zen_messages_pkey",
+          "constraint_type": "PRIMARY KEY",
+          "column_name": "id",
+          "foreign_key_reference": null
+        },
+        {
+          "table_name": "zen_messages",
+          "constraint_name": "zen_messages_project_id_fkey",
+          "constraint_type": "FOREIGN KEY",
+          "column_name": "project_id",
+          "foreign_key_reference": "zen_projects(id)"
+        },
+        {
+          "table_name": "zen_messages",
+          "constraint_name": "zen_messages_receiver_id_fkey",
+          "constraint_type": "FOREIGN KEY",
+          "column_name": "receiver_id",
+          "foreign_key_reference": "users(id)"
+        },
+        {
+          "table_name": "zen_messages",
+          "constraint_name": "zen_messages_sender_id_fkey",
+          "constraint_type": "FOREIGN KEY",
+          "column_name": "sender_id",
+          "foreign_key_reference": "users(id)"
+        },
+        {
           "table_name": "zen_tickets",
           "constraint_name": "zen_tickets_assigned_to_fkey",
           "constraint_type": "FOREIGN KEY",
@@ -3707,6 +4084,13 @@
           "constraint_type": "FOREIGN KEY",
           "column_name": "created_by",
           "foreign_key_reference": "zen_users(id)"
+        },
+        {
+          "table_name": "zen_tickets",
+          "constraint_name": "zen_tickets_email_thread_id_key",
+          "constraint_type": "UNIQUE",
+          "column_name": "email_thread_id",
+          "foreign_key_reference": null
         },
         {
           "table_name": "zen_tickets",
@@ -3742,6 +4126,20 @@
           "constraint_type": "FOREIGN KEY",
           "column_name": "ticket_id",
           "foreign_key_reference": "zen_tickets(id)"
+        },
+        {
+          "table_name": "zen_email_logs",
+          "constraint_name": "zen_email_logs_pkey",
+          "constraint_type": "PRIMARY KEY",
+          "column_name": "id",
+          "foreign_key_reference": null
+        },
+        {
+          "table_name": "zen_email_logs",
+          "constraint_name": "zen_email_logs_template_id_fkey",
+          "constraint_type": "FOREIGN KEY",
+          "column_name": "template_id",
+          "foreign_key_reference": "zen_email_templates(id)"
         },
         {
           "table_name": "zen_ticket_attachments",
@@ -3884,6 +4282,13 @@
           "foreign_key_reference": "zen_users(id)"
         },
         {
+          "table_name": "zen_email_templates",
+          "constraint_name": "zen_email_templates_pkey",
+          "constraint_type": "PRIMARY KEY",
+          "column_name": "id",
+          "foreign_key_reference": null
+        },
+        {
           "table_name": "zen_time_entries",
           "constraint_name": "zen_time_entries_pkey",
           "constraint_type": "PRIMARY KEY",
@@ -3903,6 +4308,27 @@
           "constraint_type": "FOREIGN KEY",
           "column_name": "user_id",
           "foreign_key_reference": "zen_users(id)"
+        },
+        {
+          "table_name": "zen_email_replies",
+          "constraint_name": "zen_email_replies_original_email_id_fkey",
+          "constraint_type": "FOREIGN KEY",
+          "column_name": "original_email_id",
+          "foreign_key_reference": "zen_email_logs(id)"
+        },
+        {
+          "table_name": "zen_email_replies",
+          "constraint_name": "zen_email_replies_pkey",
+          "constraint_type": "PRIMARY KEY",
+          "column_name": "id",
+          "foreign_key_reference": null
+        },
+        {
+          "table_name": "zen_email_replies",
+          "constraint_name": "zen_email_replies_ticket_id_fkey",
+          "constraint_type": "FOREIGN KEY",
+          "column_name": "ticket_id",
+          "foreign_key_reference": "zen_tickets(id)"
         },
         {
           "table_name": "zen_courses",
