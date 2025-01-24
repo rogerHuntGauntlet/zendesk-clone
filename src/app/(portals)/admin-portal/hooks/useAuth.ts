@@ -1,9 +1,8 @@
 "use client";
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { validatePassword } from '../utils/validation';
+import { supabase } from '@/lib/auth-config';
 
 interface RegisterData {
   email: string;
@@ -14,14 +13,6 @@ interface RegisterData {
 
 export function useAuth() {
   const router = useRouter();
-  const supabase = createClientComponentClient({
-    options: {
-      cookieOptions: {
-        name: "sb-admin-auth",
-        path: "/admin-portal"
-      }
-    }
-  });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -103,7 +94,7 @@ export function useAuth() {
           role: 'admin',
           department: formData.department,
         },
-        emailRedirectTo: `${window.location.origin}/admin-portal/login`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -131,7 +122,7 @@ export function useAuth() {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin-portal/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
     });
 
     if (error) throw error;
