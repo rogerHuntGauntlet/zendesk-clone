@@ -118,11 +118,10 @@ export default function Home() {
           <div className="mt-16 flex flex-col items-center gap-4">
             <button
               onClick={() => router.push('/admin-portal/login')}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 
-                transition-all text-white font-bold py-4 px-8 rounded-full flex items-center gap-2 group"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-full text-lg font-semibold hover:opacity-90 transition-opacity flex items-center gap-2"
             >
-              Start Customizing
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              Let's Get Started
+              <ArrowRight className="w-5 h-5" />
             </button>
             <p className="text-white/60 text-sm">No credit card required • Free 14-day trial</p>
           </div>
