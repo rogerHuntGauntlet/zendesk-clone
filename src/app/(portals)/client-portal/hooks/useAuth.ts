@@ -14,7 +14,14 @@ interface RegisterData {
 
 export function useAuth() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClientComponentClient({
+    options: {
+      cookieOptions: {
+        name: "sb-client-auth",
+        path: "/client-portal"
+      }
+    }
+  });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

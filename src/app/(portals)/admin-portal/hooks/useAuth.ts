@@ -14,7 +14,14 @@ interface RegisterData {
 
 export function useAuth() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClientComponentClient({
+    options: {
+      cookieOptions: {
+        name: "sb-admin-auth",
+        path: "/admin-portal"
+      }
+    }
+  });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -144,13 +151,19 @@ export function useAuth() {
     router.push('/admin-portal/login');
   };
 
+  const getCurrentUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user ?? null;
+  };
+
   return {
-    signIn,
-    signUp,
-    signOut,
-    resetPassword,
-    updatePassword,
     user,
     loading,
+    signIn,
+    signOut,
+    signUp,
+    getCurrentUser,
+    resetPassword,
+    updatePassword,
   };
 }

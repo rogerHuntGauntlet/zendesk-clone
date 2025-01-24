@@ -40,6 +40,7 @@ interface TicketTimelineProps {
       metadata: any;
     }>;
   };
+  userRole?: 'admin' | 'employee' | 'client';
 }
 
 interface Session {
@@ -82,11 +83,11 @@ interface TicketSummaryResponse {
   } | null;
 }
 
-export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimelineProps) {
+export default function TicketTimeline({ isOpen, onClose, ticket, userRole = 'client' }: TicketTimelineProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showWorkModal, setShowWorkModal] = useState(false);
-  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false); 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -96,7 +97,7 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
 
   useEffect(() => {
     if (isOpen) {
-      setPage(0); // Reset pagination when modal opens
+      setPage(0); 
       loadSessions(0);
     }
   }, [isOpen]);
@@ -108,7 +109,6 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
         toast.loading('Loading ticket history...');
       }
 
-      // Get summaries
       const { data: summaries, error: summaryError } = await supabase
         .from('zen_ticket_summaries')
         .select(`
@@ -124,7 +124,6 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
 
       if (summaryError) throw summaryError;
 
-      // Get user emails for created_by values
       const createdByIds = (summaries || [])
         .map(s => s.created_by)
         .filter((id, index, self) => self.indexOf(id) === index);
@@ -134,10 +133,8 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
         .select('id, email')
         .in('id', createdByIds);
 
-      // Create a map of user IDs to emails
       const userEmailMap = new Map(users?.map(u => [u.id, u.email]) || []);
 
-      // Check if there are more sessions
       const { count } = await supabase
         .from('zen_ticket_summaries')
         .select('*', { count: 'exact', head: true })
@@ -145,7 +142,6 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
 
       setHasMore((count || 0) > (pageNum + 1) * SESSIONS_PER_PAGE);
 
-      // Map summaries to sessions with user info
       const sessionsData = (summaries || []).map(summary => ({
         id: summary.id,
         summary: summary.summary,
@@ -153,7 +149,7 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
         created_by: summary.created_by,
         user_email: userEmailMap.get(summary.created_by) || summary.created_by,
         user_role: summary.created_by_role as Session['user_role'],
-        activities: [], // Empty initially
+        activities: [], 
         expanded: false
       }));
 
@@ -191,7 +187,6 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
 
       if (activityError) throw activityError;
 
-      // Update the session with activities
       setSessions(prev => prev.map(session => 
         session.id === sessionId
           ? { ...session, activities: activities || [] }
@@ -209,18 +204,15 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
   };
 
   const handleViewSession = async (session: Session) => {
-    // Show modal immediately with loading state
     setSelectedSession({
       ...session,
-      activities: [] // Start with empty activities
+      activities: [] 
     });
     setShowWorkModal(true);
     setIsReadOnly(true);
 
-    // Load activities
     const activities = await loadSessionActivities(session.id);
     
-    // Update the selected session with loaded activities
     setSelectedSession(prev => prev ? { 
       ...prev, 
       activities: activities 
@@ -239,18 +231,21 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
     return text.split('\n')[0];
   };
 
+  const handleWorkSuccess = () => {
+    setShowWorkModal(false);
+    setSelectedSession(null);
+    setLoadingSessionId(null);
+    setPage(0);
+    loadSessions(0);
+  };
+
   return (
     <>
-      <Dialog
-        open={isOpen}
-        onClose={onClose}
-        className="fixed inset-0 z-50 overflow-y-auto"
-      >
+      <Dialog open={isOpen} onClose={onClose} className="relative z-50">
         <div className="flex min-h-screen items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/50" aria-hidden="true" />
           
           <Dialog.Panel className="relative bg-gray-900 rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
-            {/* Fixed Header */}
             <div className="flex-none p-6 border-b border-white/10">
               <div className="flex items-center justify-between">
                 <div>
@@ -263,7 +258,7 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
                   onClick={() => {
                     setShowWorkModal(true);
                     setIsReadOnly(false);
-                    setSessions([]); // Clear sessions when creating new one
+                    setSessions([]); 
                   }}
                   className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
                 >
@@ -272,7 +267,6 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
               </div>
             </div>
 
-            {/* Scrollable Content */}
             <div className="flex-1 p-6 overflow-y-auto min-h-0">
               {isLoading && page === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
@@ -366,7 +360,6 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
               )}
             </div>
 
-            {/* Fixed Footer */}
             <div className="flex-none p-6 border-t border-white/10">
               <div className="flex justify-end">
                 <button
@@ -381,28 +374,16 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
         </div>
       </Dialog>
 
-      {showWorkModal && (
+      {showWorkModal && selectedSession && (
         <WorkOnTicketModal
           isOpen={showWorkModal}
-          onClose={() => {
-            setShowWorkModal(false);
-            setSelectedSession(null);
-            setLoadingSessionId(null);
-            setPage(0);
-            loadSessions(0);
-          }}
-          ticket={ticket}
-          readOnlySession={selectedSession || undefined}
-          isLoadingActivities={loadingSessionId === selectedSession?.id}
-          onSessionComplete={() => {
-            setShowWorkModal(false);
-            setSelectedSession(null);
-            setLoadingSessionId(null);
-            setPage(0);
-            loadSessions(0);
-          }}
+          onClose={() => setShowWorkModal(false)}
+          ticketId={ticket.id}
+          sessionId={selectedSession.id}
+          onSuccess={handleWorkSuccess}
+          userRole={userRole} 
         />
       )}
     </>
   );
-} 
+}

@@ -729,6 +729,7 @@ export default function ProjectDetails() {
             zen_ticket_activities: selectedTicketDetails.zen_ticket_activities,
             zen_ticket_messages: selectedTicketDetails.zen_ticket_messages
           }}
+          userRole="client"
         />
       )}
     </div>

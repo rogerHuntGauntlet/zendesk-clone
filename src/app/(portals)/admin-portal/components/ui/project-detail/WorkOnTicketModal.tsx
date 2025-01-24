@@ -11,40 +11,20 @@ import { ResponseTemplates } from './ResponseTemplates';
 interface WorkOnTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSessionComplete: () => void;
-  ticket: {
-    id: string;
-    title: string;
-    description: string;
-    status: string;
-  };
-  readOnlySession?: {
-    id: string;
-    summary: string;
-    created_at: string;
-    activities: Array<{
-      id: string;
-      activity_type: string;
-      content?: string;
-      media_url?: string;
-      created_at: string;
-      metadata: any;
-    }>;
-  };
-  isLoadingActivities?: boolean;
-  userRole?: 'client' | 'admin' | 'employee';
+  ticketId: string;
+  sessionId: string;
+  onSuccess: () => void;
+  userRole?: 'admin' | 'employee' | 'client';
 }
 
-interface Activity {
-  id: string;
-  activity_type: string;
-  content?: string;
-  media_url?: string;
-  created_at: string;
-  metadata: any;
-}
-
-export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, ticket, readOnlySession, isLoadingActivities, userRole = 'admin' }: WorkOnTicketModalProps) {
+export default function WorkOnTicketModal({
+  isOpen,
+  onClose,
+  ticketId,
+  sessionId,
+  onSuccess,
+  userRole = 'client'
+}: WorkOnTicketModalProps) {
   const supabase = createClientComponentClient();
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,19 +42,38 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [resetKey, setResetKey] = useState(0);
-  const [aiChatKey] = useState(`${ticket.id}-${Math.random()}`); // Create a stable key for AI chat
+  const [aiChatKey] = useState(`${ticketId}-${Math.random()}`); // Create a stable key for AI chat
 
   // Initialize state based on whether we're viewing an existing session
   useEffect(() => {
-    if (readOnlySession) {
+    if (sessionId) {
       // Load existing session data
-      setSessionSummary(readOnlySession.summary);
-      setActivities(readOnlySession.activities);
+      supabase
+        .from('zen_ticket_summaries')
+        .select()
+        .eq('id', sessionId)
+        .then(({ data, error }) => {
+          if (error) throw error;
+          if (data && data.length > 0) {
+            setSessionSummary(data[0].summary);
+          }
+        });
+
+      supabase
+        .from('zen_ticket_activities')
+        .select()
+        .eq('ticket_id', ticketId)
+        .then(({ data, error }) => {
+          if (error) throw error;
+          if (data) {
+            setActivities(data);
+          }
+        });
     } else {
       // Start fresh for new session
       resetAllState();
     }
-  }, [isOpen, readOnlySession]);
+  }, [isOpen, sessionId, ticketId]);
 
   const resetAllState = () => {
     setComment('');
@@ -105,19 +104,21 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       if (!user) throw new Error('No user found');
 
       // Update ticket status to in_progress
-      const { error: statusError } = await supabase
-        .from('zen_tickets')
-        .update({ status: 'in_progress' })
-        .eq('id', ticket.id);
+      if (userRole !== 'client') {
+        const { error: statusError } = await supabase
+          .from('zen_tickets')
+          .update({ status: 'in_progress' })
+          .eq('id', ticketId);
 
-      if (statusError) throw statusError;
+        if (statusError) throw statusError;
+      }
 
       // Add a comment if one was written
       if (comment.trim()) {
         const { error: commentError } = await supabase
           .from('zen_ticket_activities')
           .insert({
-            ticket_id: ticket.id,
+            ticket_id: ticketId,
             activity_type: 'comment',
             content: comment,
             created_by: user.id
@@ -129,7 +130,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       // Save recordings if available
       if (recordings.length > 0) {
         const recordingActivities = recordings.map(recording => ({
-          ticket_id: ticket.id,
+          ticket_id: ticketId,
           activity_type: recording.type,
           media_url: recording.url,
           content: `${recording.type} recording`,
@@ -148,10 +149,10 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
         const { error: summaryError } = await supabase
           .from('zen_ticket_summaries')
           .insert({
-            ticket_id: ticket.id,
+            ticket_id: ticketId,
             summary: sessionSummary,
             created_by: user.id,
-            created_by_role: 'admin'
+            created_by_role: userRole
           });
 
         if (summaryError) throw summaryError;
@@ -161,7 +162,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       
       // Reset all state and close
       resetAllState();
-      onSessionComplete();
+      onSuccess();
       onClose(); // Close the modal after successful submission
     } catch (error) {
       console.error('Error updating ticket:', error);
@@ -211,10 +212,10 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       const { data: summaryData, error: summaryError } = await supabase
         .from('zen_ticket_summaries')
         .insert({
-          ticket_id: ticket.id,
+          ticket_id: ticketId,
           summary: summary,
           created_by: user.id,
-          created_by_role: 'admin' // Assuming this is being used in admin portal
+          created_by_role: userRole
         })
         .select()
         .single();
@@ -228,7 +229,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       // Add recordings
       recordings.forEach(recording => {
         sessionActivities.push({
-          ticket_id: ticket.id,
+          ticket_id: ticketId,
           activity_type: recording.type,
           media_url: recording.url,
           content: `${recording.type} recording`,
@@ -242,7 +243,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       // Add comments
       if (comment.trim()) {
         sessionActivities.push({
-          ticket_id: ticket.id,
+          ticket_id: ticketId,
           activity_type: 'comment',
           content: comment,
           metadata: {
@@ -255,7 +256,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       // Add existing activities
       activities.forEach(activity => {
         sessionActivities.push({
-          ticket_id: ticket.id,
+          ticket_id: ticketId,
           activity_type: activity.activity_type,
           content: activity.content,
           media_url: activity.media_url,
@@ -277,12 +278,12 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       }
 
       // Step 3: Update ticket status if needed
-      if (ticket.status === 'new') {
+      if (userRole !== 'client') {
         toast.loading('Updating ticket status...');
         const { error: statusError } = await supabase
           .from('zen_tickets')
           .update({ status: 'in_progress' })
-          .eq('id', ticket.id);
+          .eq('id', ticketId);
 
         if (statusError) throw statusError;
       }
@@ -290,7 +291,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
       // Reset all state and close
       resetAllState();
       toast.success('Session saved successfully!');
-      onSessionComplete();
+      onSuccess();
     } catch (error) {
       console.error('Error saving session:', error);
       toast.error('Failed to save session. Please try again.');
@@ -388,13 +389,13 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
             <div className="flex-1 min-h-0">
               <AdminAIChat 
                 key={aiChatKey}
-                ticketId={ticket.id}
+                ticketId={ticketId}
                 userRole={userRole}
                 onSummaryGenerated={summary => setSessionSummary(prev => 
                   prev ? `${prev}\n\nAI Chat Summary:\n${summary}` : summary
                 )}
                 selectedSession={selectedActivity?.metadata?.messages}
-                onReset={!readOnlySession ? () => setResetKey(prev => prev + 1) : undefined}
+                onReset={!sessionId ? () => setResetKey(prev => prev + 1) : undefined}
               />
             </div>
           </div>
@@ -436,7 +437,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
               {/* Recording Interface */}
               <div className="bg-gray-800/50 rounded-lg p-4">
                 <AdminMediaRecorder
-                  ticketId={ticket.id}
+                  ticketId={ticketId}
                   onRecordingComplete={handleRecordingComplete}
                   recordingType={recordingMode || 'audio'}
                 />
@@ -555,9 +556,9 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
             <div className="flex-none p-6 border-b border-white/10">
               <div className="flex justify-between items-center">
                 <Dialog.Title className="text-2xl font-semibold text-white">
-                  {readOnlySession ? 'Session Details' : 'Work on Ticket'}
+                  {sessionId ? 'Session Details' : 'Work on Ticket'}
                 </Dialog.Title>
-                {!readOnlySession && (
+                {!sessionId && (
                   <button
                     onClick={resetAllState}
                     className="px-3 py-1.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors"
@@ -567,12 +568,11 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
                 )}
               </div>
               <div className="mt-2">
-                <h3 className="text-lg font-medium text-white">{ticket.title}</h3>
-                <p className="text-white/60 mt-1">{ticket.description}</p>
+                <h3 className="text-lg font-medium text-white">{ticketId}</h3>
               </div>
             </div>
 
-            {!readOnlySession ? (
+            {!sessionId ? (
               <div className="flex-1 flex min-h-0">
                 {/* Left Sidebar */}
                 <div className="flex-none w-20 bg-gray-800/50 border-r border-white/10 p-4 flex flex-col items-center gap-6">
@@ -638,101 +638,92 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
                   </div>
 
                   <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                    {isLoadingActivities ? (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="flex items-center gap-3">
-                          <div className="w-5 h-5 border-2 border-white/20 border-t-white/100 rounded-full animate-spin" />
-                          <span className="text-white/60">Loading session activities...</span>
+                    {activities.map((activity) => (
+                      <div 
+                        key={activity.id}
+                        className={`flex items-start gap-3 text-white/80 bg-gray-800/50 rounded p-2 ${
+                          selectedActivity?.id === activity.id ? 'ring-2 ring-violet-500' : ''
+                        } hover:bg-gray-800/70 cursor-pointer group`}
+                        onClick={() => handleActivityClick(activity)}
+                      >
+                        <div className="flex-shrink-0 mt-0.5">
+                          {getActivityIcon(activity.activity_type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-medium capitalize truncate">
+                                {activity.activity_type.replace('_', ' ')}
+                              </span>
+                              <span className="text-xs text-white/40 flex-shrink-0">
+                                {formatActivityTime(activity.created_at)}
+                              </span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteActivity(activity.id);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
+                            >
+                              Delete
+                            </button>
+                          </div>
+
+                          {/* Display media content */}
+                          {(activity.activity_type === 'audio' || activity.activity_type === 'video' || activity.activity_type === 'screen') && activity.media_url && (
+                            <div className="mt-3">
+                              {activity.activity_type === 'audio' ? (
+                                <audio 
+                                  controls 
+                                  className="w-full" 
+                                  src={activity.media_url}
+                                >
+                                  Your browser does not support the audio element.
+                                </audio>
+                              ) : (
+                                <video 
+                                  controls 
+                                  className="w-full rounded" 
+                                  src={activity.media_url}
+                                >
+                                  Your browser does not support the video element.
+                                </video>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Display comment content */}
+                          {activity.content && activity.activity_type === 'comment' && (
+                            <p className="text-sm text-white/60 mt-2">
+                              {activity.content}
+                            </p>
+                          )}
+
+                          {/* Display AI chat messages */}
+                          {activity.metadata?.messages && (
+                            <div className="mt-4 space-y-3">
+                              {activity.metadata.messages.map((msg: any, index: number) => (
+                                <div
+                                  key={index}
+                                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                  <div
+                                    className={`max-w-[80%] rounded-lg p-3 ${
+                                      msg.role === 'user'
+                                        ? 'bg-violet-600/80 text-white'
+                                        : 'bg-gray-700/80 text-gray-100'
+                                    }`}
+                                  >
+                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ) : (
-                      activities.map((activity) => (
-                        <div 
-                          key={activity.id}
-                          className={`flex items-start gap-3 text-white/80 bg-gray-800/50 rounded p-2 ${
-                            selectedActivity?.id === activity.id ? 'ring-2 ring-violet-500' : ''
-                          } hover:bg-gray-800/70 cursor-pointer group`}
-                          onClick={() => handleActivityClick(activity)}
-                        >
-                          <div className="flex-shrink-0 mt-0.5">
-                            {getActivityIcon(activity.activity_type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-medium capitalize truncate">
-                                  {activity.activity_type.replace('_', ' ')}
-                                </span>
-                                <span className="text-xs text-white/40 flex-shrink-0">
-                                  {formatActivityTime(activity.created_at)}
-                                </span>
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteActivity(activity.id);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity"
-                              >
-                                Delete
-                              </button>
-                            </div>
-
-                            {/* Display media content */}
-                            {(activity.activity_type === 'audio' || activity.activity_type === 'video' || activity.activity_type === 'screen') && activity.media_url && (
-                              <div className="mt-3">
-                                {activity.activity_type === 'audio' ? (
-                                  <audio 
-                                    controls 
-                                    className="w-full" 
-                                    src={activity.media_url}
-                                  >
-                                    Your browser does not support the audio element.
-                                  </audio>
-                                ) : (
-                                  <video 
-                                    controls 
-                                    className="w-full rounded" 
-                                    src={activity.media_url}
-                                  >
-                                    Your browser does not support the video element.
-                                  </video>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Display comment content */}
-                            {activity.content && activity.activity_type === 'comment' && (
-                              <p className="text-sm text-white/60 mt-2">
-                                {activity.content}
-                              </p>
-                            )}
-
-                            {/* Display AI chat messages */}
-                            {activity.metadata?.messages && (
-                              <div className="mt-4 space-y-3">
-                                {activity.metadata.messages.map((msg: any, index: number) => (
-                                  <div
-                                    key={index}
-                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                  >
-                                    <div
-                                      className={`max-w-[80%] rounded-lg p-3 ${
-                                        msg.role === 'user'
-                                          ? 'bg-violet-600/80 text-white'
-                                          : 'bg-gray-700/80 text-gray-100'
-                                      }`}
-                                    >
-                                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
+                    ))}
                   </div>
 
                   {sessionSummary && (
@@ -897,7 +888,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
                   >
                     Close
                   </button>
-                  {!readOnlySession && !isComplete && (
+                  {!sessionId && (
                     <>
                       <button
                         onClick={() => {
@@ -920,7 +911,7 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
         isOpen={isSummaryModalOpen}
         onClose={() => setIsSummaryModalOpen(false)}
         onSubmit={handleSummarySubmit}
-        ticketId={ticket.id}
+        ticketId={ticketId}
         activities={activities}
         recordings={recordings}
         comment={comment}
