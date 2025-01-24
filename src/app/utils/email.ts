@@ -1,11 +1,5 @@
 import sgMail from '@sendgrid/mail';
 
-// Initialize SendGrid with API key
-if (!process.env.SENDGRID_API_KEY) {
-  throw new Error('SENDGRID_API_KEY is not configured');
-}
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
 type InviteType = 'client' | 'employee';
 
 interface SendInviteEmailParams {
@@ -21,6 +15,12 @@ export async function sendProjectInviteEmail({
   inviteType,
   inviteToken,
 }: SendInviteEmailParams) {
+  // Initialize SendGrid only when function is called
+  if (!process.env.SENDGRID_API_KEY) {
+    throw new Error('SENDGRID_API_KEY is not configured');
+  }
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const portalPath = inviteType === 'client' ? 'client-portal' : 'employee-portal';
   const loginUrl = `${baseUrl}/${portalPath}/login?invite=${inviteToken}`;
