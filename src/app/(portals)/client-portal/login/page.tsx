@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 "use client";
 
 import { useState } from "react";
@@ -170,7 +172,7 @@ export default function ClientLogin() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-green-600 focus:ring-green-500 border-white/20 rounded bg-white/10"
+                className="h-4 w-4 text-green-600 focus:ring-green-500 border border-white/20 rounded bg-white/10"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-white/80">
                 Remember me
