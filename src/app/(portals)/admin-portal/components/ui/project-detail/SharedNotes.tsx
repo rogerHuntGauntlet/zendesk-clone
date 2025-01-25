@@ -46,19 +46,32 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
 
   useEffect(() => {
     loadNotes();
+
     // Set up real-time subscription
     const channel = supabase
-      .channel('shared_notes')
+      .channel('notes_changes')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen for all events
           schema: 'public',
-          table: 'zen_shared_notes',
+          table: 'zen_notes',
           filter: `project_id=eq.${projectId}`
         },
         (payload) => {
-          handleNewNote(payload.new as Note);
+          if (payload.eventType === 'INSERT') {
+            // Add new note to the bottom of the list
+            const newNote = payload.new as DatabaseNote;
+            setNotes(prevNotes => [...prevNotes, {
+              ...newNote,
+              user: {
+                email: newNote.user?.email || ''
+              }
+            }]);
+          } else if (payload.eventType === 'DELETE') {
+            // Remove deleted note from the list
+            setNotes(prevNotes => prevNotes.filter(note => note.id !== payload.old.id));
+          }
         }
       )
       .subscribe();
@@ -77,35 +90,41 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
   };
 
   const loadNotes = async () => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('zen_shared_notes')
-        .select(`
-          id,
-          content,
-          created_at,
-          created_by,
-          mentions,
-          user:zen_users!zen_shared_notes_created_by_fkey (
-            email
-          )
-        `)
+      // First get the notes
+      const { data: notesData, error: notesError } = await supabase
+        .from('zen_notes')
+        .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      
-      const typedData = (data || []) as unknown as DatabaseNote[];
-      setNotes(typedData.map(note => ({
+      if (notesError) throw notesError;
+
+      // Then get the user emails for all creators
+      const creatorIds = [...new Set(notesData?.map(note => note.created_by) || [])];
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, email')
+        .in('id', creatorIds);
+
+      if (userError) throw userError;
+
+      // Create a map of user IDs to emails
+      const userEmails = new Map(userData?.map(user => [user.id, user.email]));
+
+      // Combine the data
+      const formattedNotes = (notesData || []).map(note => ({
         ...note,
         user: {
-          email: note.user.email
+          email: userEmails.get(note.created_by) || ''
         }
-      })));
+      }));
+
+      setNotes(formattedNotes);
     } catch (error) {
       console.error('Error loading notes:', error);
-      toast.error('Failed to load shared notes');
+      toast.error('Failed to load notes');
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +142,7 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
 
     try {
       const { data, error } = await supabase
-        .from('zen_users')
+        .from('users')
         .select('id, email')
         .ilike('email', `%${query}%`)
         .limit(5);
@@ -157,25 +176,58 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
 
   const submitNote = async () => {
     if (!newNote.trim()) return;
+    if (!projectId) {
+      toast.error('Project ID is required to add notes');
+      return;
+    }
 
     try {
+      // First verify the project exists
+      const { data: projectExists, error: projectCheckError } = await supabase
+        .from('zen_projects')
+        .select('id')
+        .eq('id', projectId)
+        .single();
+
+      if (projectCheckError || !projectExists) {
+        throw new Error('Project not found. Please refresh the page and try again.');
+      }
+
       // Extract mentions from content
       const mentions = newNote.match(/@(\w+)/g)?.map(m => m.substring(1)) || [];
       
-      const { error } = await supabase
-        .from('zen_shared_notes')
+      // Create the note
+      const { data: noteData, error: noteError } = await supabase
+        .from('zen_notes')
         .insert({
-          project_id: projectId,
           content: newNote,
           created_by: currentUser.id,
-          mentions
-        });
+          project_id: projectId,
+          mentions: mentions
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (noteError) {
+        console.error('Note creation error:', noteError);
+        throw new Error('Failed to create note');
+      }
+
       setNewNote('');
+      toast.success('Note added successfully');
+
+      // Add the new note to the list at the bottom
+      if (noteData) {
+        setNotes(prevNotes => [...prevNotes, {
+          ...noteData,
+          user: {
+            email: currentUser.email
+          }
+        }]);
+      }
     } catch (error) {
       console.error('Error submitting note:', error);
-      toast.error('Failed to submit note');
+      toast.error(error instanceof Error ? error.message : 'Failed to submit note');
     }
   };
 

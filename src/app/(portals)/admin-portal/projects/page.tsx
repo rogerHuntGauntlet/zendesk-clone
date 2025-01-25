@@ -14,6 +14,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import AssignmentsModal from '../components/ui/AssignmentsModal';
 import TeamManagement from '../components/ui/team-management/TeamManagement';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
+import { useSupabase } from '../../../providers';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -55,6 +56,8 @@ export default function ProjectsPage() {
     action: () => {},
     type: 'info'
   });
+
+  const supabase = useSupabase();
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -140,7 +143,7 @@ export default function ProjectsPage() {
     setFilteredProjects(result);
   }, [projects, searchQuery, statusFilter, sortField]);
 
-  const handleCreateProject = async (projectData: { name: string; description: string }) => {
+  const handleCreateProject = async (projectData: { name: string; description: string; projectType: string }) => {
     try {
       const user = await getCurrentUser();
       if (!user) {
@@ -163,6 +166,8 @@ export default function ProjectsPage() {
         throw new Error(error.error || 'Failed to create project');
       }
 
+      const newProject = await response.json();
+
       // Refresh projects list
       const projectsResponse = await fetch(`/admin-portal/api/projects?userId=${user.id}`);
       if (!projectsResponse.ok) {
@@ -172,6 +177,8 @@ export default function ProjectsPage() {
       setProjects(updatedProjects);
       toast.success('Project created successfully');
       setIsNewProjectModalOpen(false);
+
+      return { id: newProject.id };
     } catch (error) {
       console.error('Error in handleCreateProject:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create project');
@@ -325,34 +332,31 @@ export default function ProjectsPage() {
     );
   };
 
-  const fetchMembers = async () => {
+  const fetchMembers = async (userId: string) => {
+    if (!userId) return;
+    
     try {
-      const user = await getCurrentUser();
-      if (!user) {
-        router.push("/admin-portal/login");
+      const { data, error } = await supabase
+        .from('zen_users')
+        .select('*')
+        .or(`role.eq.client,role.eq.employee`);
+
+      if (error) {
+        console.error('Error fetching members:', error);
         return;
       }
 
-      console.log('Fetching members for user:', user.id);
-      const response = await fetch(`/api/members?userId=${user.id}`);
+      const clients = data.filter(user => user.role === 'client');
+      const employees = data.filter(user => user.role === 'employee');
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
-        throw new Error(errorData.error || 'Failed to fetch client details');
-      }
-      
-      const data = await response.json();
-      console.log('Received members data:', data);
-      setMembers(data);
+      setMembers({ clients, employees });
     } catch (error) {
-      console.error('Error fetching members:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to fetch members');
+      console.error('Error in fetchMembers:', error);
     }
   };
 
   useEffect(() => {
-    fetchMembers();
+    fetchMembers(getCurrentUser()?.id);
   }, []);
 
   if (error) {

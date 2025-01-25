@@ -8,7 +8,7 @@ import { validatePassword } from "../utils/validation";
 
 type AuthMode = "login" | "register" | "forgot-password";
 
-interface RegisterData {
+interface FormData {
   email: string;
   password: string;
   name: string;
@@ -20,7 +20,7 @@ export default function AdminLogin() {
   const { signIn, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
   const [rememberMe, setRememberMe] = useState(false);
-  const [formData, setFormData] = useState<RegisterData>({
+  const [formData, setFormData] = useState<FormData>({
     email: "",
     password: "",
     name: "",
@@ -53,7 +53,7 @@ export default function AdminLogin() {
         }
         await signUp(formData);
         setMode("login");
-        setError("Account created! Please verify your email and then log in with your credentials.");
+        setError("Account created! Please verify your email and then log in.");
       } else if (mode === "forgot-password") {
         await resetPassword(formData.email);
         setError("Password reset link has been sent to your email.");
@@ -102,6 +102,8 @@ export default function AdminLogin() {
                   className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   placeholder="John Doe"
                   required={mode === "register"}
+                  autoComplete="name"
+                  name="name"
                 />
               </div>
 
@@ -117,6 +119,8 @@ export default function AdminLogin() {
                   className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-500"
                   placeholder="IT Support"
                   required={mode === "register"}
+                  autoComplete="organization"
+                  name="department"
                 />
               </div>
             </>
@@ -134,7 +138,8 @@ export default function AdminLogin() {
               className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-500"
               placeholder="admin@company.com"
               required
-              autoComplete="username"
+              autoComplete="email"
+              name="email"
             />
           </div>
 
@@ -151,7 +156,8 @@ export default function AdminLogin() {
                 className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-500"
                 placeholder="••••••••"
                 required={mode === "login" || mode === "register"}
-                autoComplete="current-password"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                name="password"
               />
               {mode === "register" && passwordErrors.length > 0 && (
                 <div className="mt-2 space-y-1">
@@ -172,7 +178,7 @@ export default function AdminLogin() {
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 text-violet-600 focus:ring-violet-500 border-white/20 rounded bg-white/10"
+                className="h-4 w-4 text-violet-600 focus:ring-violet-500 border border-white/20 rounded bg-white/10"
               />
               <label htmlFor="remember-me" className="ml-2 block text-sm text-white/80">
                 Remember me
@@ -237,4 +243,4 @@ export default function AdminLogin() {
       </div>
     </div>
   );
-} 
+}

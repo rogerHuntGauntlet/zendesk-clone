@@ -162,10 +162,16 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
 
     try {
       // First, create the project
-      const { id: projectId } = await onSubmit({ 
+      const result = await onSubmit({ 
         ...formData, 
         projectType: selectedProjectType!
       });
+
+      if (!result?.id) {
+        throw new Error('Failed to create project: No project ID returned');
+      }
+
+      const projectId = result.id;
 
       // Get the current user's ID for the invited_by field
       const { data: { user } } = await supabase.auth.getUser();
@@ -288,11 +294,9 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                               ? 'border-violet-600 bg-violet-50'
                               : 'border-gray-200 hover:border-violet-300'
                           }`}
+                          onClick={() => setSelectedProjectType(type.name)}
                         >
-                          <div 
-                            className="flex items-start justify-between"
-                            onClick={() => setSelectedProjectType(type.name)}
-                          >
+                          <div className="flex items-start justify-between">
                             <div className="flex gap-4">
                               <div className={`p-2 rounded-lg bg-gradient-to-r ${type.color}`}>
                                 <Icon className="w-6 h-6 text-white" />
@@ -319,14 +323,6 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                               >
                                 <PlayCircle className="w-4 h-4" />
                                 Watch Tutorial
-                              </button>
-                              <button
-                                type="button"
-                                onClick={nextStep}
-                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg"
-                              >
-                                Next
-                                <ChevronRight className="w-4 h-4" />
                               </button>
                             </motion.div>
                           )}
@@ -384,6 +380,7 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                     animate={{ opacity: 1, x: 0 }}
                     className="space-y-6"
                   >
+                    {/* Team members content */}
                     {fetchingUsers ? (
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
@@ -476,14 +473,14 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                                     </span>
                                   </div>
                                   <div>
-                                    <span className="text-sm text-gray-900">{member.email}</span>
+                                    <p className="text-sm font-medium text-gray-900">{member.email}</p>
                                     <p className="text-xs text-gray-500 capitalize">{member.role}</p>
                                   </div>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveMember(member.email)}
-                                  className="p-1 text-gray-400 hover:text-red-500 focus:outline-none"
+                                  className="text-violet-600 hover:text-violet-700"
                                 >
                                   <UserMinus className="w-5 h-5" />
                                 </button>
@@ -496,7 +493,8 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                   </motion.div>
                 )}
 
-                <div className="mt-8 flex justify-between items-center">
+                {/* Footer with navigation buttons */}
+                <div className="flex justify-between pt-4 border-t">
                   {currentStep > 1 && (
                     <button
                       type="button"
@@ -505,6 +503,26 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                     >
                       <ChevronLeft className="w-4 h-4" />
                       Back
+                    </button>
+                  )}
+                  {currentStep < 3 && (
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      disabled={currentStep === 2 && (!formData.name || !formData.description)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                  {currentStep === 3 && (
+                    <button
+                      type="submit"
+                      disabled={loading || teamMembers.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                    >
+                      {loading ? 'Creating...' : 'Create Project'}
                     </button>
                   )}
                 </div>
