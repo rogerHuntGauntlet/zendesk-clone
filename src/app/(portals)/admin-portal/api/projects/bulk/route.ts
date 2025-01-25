@@ -1,57 +1,67 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 
-export async function PUT(request: Request) {
+export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { projectIds, action, status } = await request.json();
+    const supabase = createClient();
+    const body = await request.json();
+    const { projectIds, action } = body;
 
     if (!projectIds || !Array.isArray(projectIds) || projectIds.length === 0) {
-      return NextResponse.json({ error: 'Invalid project IDs' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Project IDs array is required' },
+        { status: 400 }
+      );
     }
 
-    if (action === 'archive') {
-      // Archive projects
-      await db.query(
-        `UPDATE zen_projects 
-         SET status = 'archived', 
-             updated_at = NOW() 
-         WHERE id = ANY($1::uuid[])`,
-        [projectIds]
+    if (!action) {
+      return NextResponse.json(
+        { error: 'Action is required' },
+        { status: 400 }
       );
-    } else if (action === 'update_status' && status) {
-      // Update project status
-      await db.query(
-        `UPDATE zen_projects 
-         SET status = $1, 
-             updated_at = NOW() 
-         WHERE id = ANY($2::uuid[])`,
-        [status, projectIds]
-      );
-    } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    // Return updated projects
-    const { rows: updatedProjects } = await db.query(
-      `SELECT * FROM zen_projects WHERE id = ANY($1::uuid[])`,
-      [projectIds]
-    );
+    let updateData = {};
+    switch (action) {
+      case 'archive':
+        updateData = { status: 'archived' };
+        break;
+      case 'activate':
+        updateData = { status: 'active' };
+        break;
+      case 'complete':
+        updateData = { status: 'completed' };
+        break;
+      default:
+        return NextResponse.json(
+          { error: 'Invalid action' },
+          { status: 400 }
+        );
+    }
 
-    return NextResponse.json(updatedProjects);
+    const { data, error } = await supabase
+      .from('zen_projects')
+      .update(updateData)
+      .in('id', projectIds)
+      .select();
+
+    if (error) {
+      console.error('Error updating projects:', error);
+      return NextResponse.json(
+        { error: error.message || 'Failed to update projects' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ 
+      message: `Successfully ${action}d ${data.length} projects`,
+      updatedProjects: data 
+    });
   } catch (error) {
     console.error('Error in bulk project update:', error);
     return NextResponse.json(
-      { error: 'Failed to update projects' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }
-} 
+}
