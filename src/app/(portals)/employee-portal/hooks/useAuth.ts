@@ -1,8 +1,8 @@
 "use client";
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/auth-config';
 import { validatePassword } from '../utils/validation';
 
 interface RegisterData {
@@ -14,14 +14,6 @@ interface RegisterData {
 
 export function useAuth() {
   const router = useRouter();
-  const supabase = createClientComponentClient({
-    options: {
-      cookieOptions: {
-        name: "sb-employee-auth",
-        path: "/employee-portal"
-      }
-    }
-  });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -103,7 +95,7 @@ export function useAuth() {
           role: 'employee',
           department: formData.department,
         },
-        emailRedirectTo: `${window.location.origin}/employee-portal/login`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -130,7 +122,7 @@ export function useAuth() {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/employee-portal/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
     });
 
     if (error) throw error;

@@ -1,9 +1,8 @@
 "use client";
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { validatePassword } from '../utils/validation';
+import { supabase } from '@/lib/auth-config';
 
 interface RegisterData {
   email: string;
@@ -14,14 +13,6 @@ interface RegisterData {
 
 export function useAuth() {
   const router = useRouter();
-  const supabase = createClientComponentClient({
-    options: {
-      cookieOptions: {
-        name: "sb-client-auth",
-        path: "/client-portal"
-      }
-    }
-  });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -101,8 +92,9 @@ export function useAuth() {
         data: {
           name: formData.name,
           role: 'client',
+          company: formData.company,
         },
-        emailRedirectTo: `${window.location.origin}/client-portal/login`,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     });
 
@@ -115,14 +107,11 @@ export function useAuth() {
         {
           user_id: data.user?.id,
           company: formData.company,
-          plan: 'standard',
-          total_tickets: 0,
-          active_tickets: 0,
         },
       ]);
 
     if (clientError) {
-      // If client record creation fails, we should clean up the auth user
+      // If client record creation fails, clean up the auth user
       await supabase.auth.admin.deleteUser(data.user!.id);
       throw clientError;
     }
@@ -132,7 +121,7 @@ export function useAuth() {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/client-portal/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?type=recovery`,
     });
 
     if (error) throw error;
@@ -152,13 +141,19 @@ export function useAuth() {
     router.push('/client-portal/login');
   };
 
+  const getCurrentUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user ?? null;
+  };
+
   return {
-    signIn,
-    signUp,
-    signOut,
-    resetPassword,
-    updatePassword,
     user,
     loading,
+    signIn,
+    signOut,
+    signUp,
+    getCurrentUser,
+    resetPassword,
+    updatePassword,
   };
 }
