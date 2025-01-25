@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../hooks/useAuth";
-import { createClient } from "../lib/supabase";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface Project {
   id: string;
@@ -29,13 +29,13 @@ export default function EmployeeProjects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"name" | "created_at" | "active_tickets">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
     fetchProjects();
   }, []);
 
   const fetchProjects = async () => {
-    const supabase = createClient();
     try {
       const user = await getCurrentUser();
       console.log('Current user:', user);
@@ -292,4 +292,4 @@ export default function EmployeeProjects() {
       </div>
     </div>
   );
-} 
+}

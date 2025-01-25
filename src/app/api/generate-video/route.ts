@@ -1,22 +1,11 @@
 import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.REPLICATE_API_TOKEN) {
-      return NextResponse.json(
-        { message: 'REPLICATE_API_TOKEN is not configured' },
-        { status: 500 }
-      );
-    }
-
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json(
-        { message: 'SUPABASE_SERVICE_ROLE_KEY is not configured' },
-        { status: 500 }
-      );
-    }
+    // Initialize Supabase client
+    const supabase = createClient();
 
     const { prompt, projectType } = await req.json();
 
@@ -26,12 +15,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
 
     // Check if we already have a video for this project type
     const { data: existingVideos, error: listError } = await supabase
@@ -65,7 +48,7 @@ export async function POST(req: Request) {
     console.log('Generating video with prompt:', prompt);
 
     // Using Zeroscope v2 XL model instead
-    const videoUrl = await replicate.run(
+    const output = await replicate.run(
       "anotherjesse/zeroscope-v2-xl:9f747673945c62801b13b84701c783929c0ee784e4748ec062204894dda1a351",
       {
         input: {
@@ -78,55 +61,44 @@ export async function POST(req: Request) {
       }
     );
 
-    if (!videoUrl) {
+    if (!output || !output[0]) {
       return NextResponse.json(
         { message: 'Failed to generate video with Replicate' },
         { status: 500 }
       );
     }
 
-    console.log('Video generated:', videoUrl);
+    console.log('Video generated:', output[0]);
 
     // Download the video
-    const response = await fetch(videoUrl as string);
-    if (!response.ok) {
-      return NextResponse.json(
-        { message: 'Failed to download generated video' },
-        { status: 500 }
-      );
-    }
-
-    const videoBlob = await response.blob();
-    const arrayBuffer = await videoBlob.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    // Generate a unique filename
-    const filename = `${projectType.toLowerCase()}/tutorial-${Date.now()}.mp4`;
+    const response = await fetch(output[0]);
+    const videoBuffer = await response.arrayBuffer();
 
     // Upload to Supabase Storage
+    const filename = `${projectType.toLowerCase()}/tutorial-${Date.now()}.mp4`;
     const { error: uploadError } = await supabase
       .storage
       .from('zen_tutorial_videos')
-      .upload(filename, buffer, {
+      .upload(filename, videoBuffer, {
         contentType: 'video/mp4',
         cacheControl: '3600'
       });
 
     if (uploadError) {
-      console.error('Upload error:', uploadError);
+      console.error('Error uploading video:', uploadError);
       return NextResponse.json(
         { message: 'Failed to upload video to storage' },
         { status: 500 }
       );
     }
 
-    // Get the public URL
+    // Get public URL
     const { data: { publicUrl } } = supabase
       .storage
       .from('zen_tutorial_videos')
       .getPublicUrl(filename);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       videoUrl: publicUrl,
       stored: true
     });

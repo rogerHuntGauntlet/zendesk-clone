@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../hooks/useAuth";
-import { createClient } from "../lib/supabase";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Input } from "../components/ui/input";
@@ -61,7 +61,7 @@ export default function ClientProjects() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 6;
-  const supabase = createClient();
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
     if (user) {

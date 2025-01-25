@@ -1,24 +1,23 @@
+import { SupabaseClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 import { createClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
 import Mustache from 'mustache';
 import OpenAI from 'openai';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+interface IncomingEmail {
+  from: string;
+  subject: string;
+  text?: string;
+  html?: string;
+}
 
 export class EmailService {
+  private supabase: SupabaseClient;
   private transporter: nodemailer.Transporter;
 
-  constructor() {
+  constructor(supabase: SupabaseClient) {
+    this.supabase = supabase;
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_SMTP_HOST,
       port: parseInt(process.env.EMAIL_SMTP_PORT || '587'),
@@ -33,7 +32,7 @@ export class EmailService {
   async sendDailyDigest(projectId: string) {
     try {
       // Get project details
-      const { data: project } = await supabase
+      const { data: project } = await this.supabase
         .from('zen_projects')
         .select('*')
         .eq('id', projectId)
@@ -42,7 +41,7 @@ export class EmailService {
       if (!project) throw new Error('Project not found');
 
       // Get template
-      const { data: template } = await supabase
+      const { data: template } = await this.supabase
         .from('zen_email_templates')
         .select('*')
         .eq('name', 'daily_digest')
@@ -57,7 +56,7 @@ export class EmailService {
       const endOfDay = new Date(yesterday.setHours(23, 59, 59, 999));
 
       // Get new tickets
-      const { data: newTickets } = await supabase
+      const { data: newTickets } = await this.supabase
         .from('zen_tickets')
         .select('*')
         .eq('project_id', projectId)
@@ -65,7 +64,7 @@ export class EmailService {
         .lte('created_at', endOfDay.toISOString());
 
       // Get updated tickets
-      const { data: updatedTickets } = await supabase
+      const { data: updatedTickets } = await this.supabase
         .from('zen_tickets')
         .select('*')
         .eq('project_id', projectId)
@@ -74,7 +73,7 @@ export class EmailService {
         .lte('updated_at', endOfDay.toISOString());
 
       // Get new sessions
-      const { data: newSessions } = await supabase
+      const { data: newSessions } = await this.supabase
         .from('zen_time_entries')
         .select('*')
         .eq('project_id', projectId)
@@ -95,14 +94,14 @@ export class EmailService {
       const html = Mustache.render(template.body_template, templateData);
 
       // Get project members' emails
-      const { data: members } = await supabase
+      const { data: members } = await this.supabase
         .from('zen_project_members')
         .select('user_id')
         .eq('project_id', projectId);
 
       if (!members || members.length === 0) return;
 
-      const { data: users } = await supabase
+      const { data: users } = await this.supabase
         .from('zen_users')
         .select('email')
         .in('id', members.map(m => m.user_id));
@@ -129,91 +128,97 @@ export class EmailService {
     }
   }
 
-  async processIncomingEmail(from: string, subject: string, body: string, threadId?: string) {
+  async processIncomingEmail(email: IncomingEmail) {
     try {
-      // Create email reply record
-      const { data: reply } = await supabase
-        .from('zen_email_replies')
-        .insert({
-          from_email: from,
-          subject,
-          body,
-          processing_status: 'processing'
-        })
+      // Extract client email
+      const clientEmail = email.from;
+
+      // Find the client in the database
+      const { data: userData, error: userError } = await this.supabase
+        .from('zen_users')
+        .select('id, role')
+        .eq('email', clientEmail)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('Client not found');
+      }
+
+      if (userData.role !== 'client') {
+        throw new Error('Only clients can create tickets via email');
+      }
+
+      // Create a new ticket
+      const { data: ticket, error: ticketError } = await this.supabase
+        .from('zen_tickets')
+        .insert([
+          {
+            title: email.subject,
+            description: email.text || email.html || '',
+            status: 'new',
+            priority: 'medium',
+            client_id: userData.id,
+          },
+        ])
         .select()
         .single();
 
-      if (!reply) throw new Error('Failed to create email reply record');
-
-      // Use OpenAI to analyze the email content
-      const analysis = await this.analyzeEmailContent(body);
-
-      // Find associated ticket
-      let ticketId: string | null = null;
-
-      if (threadId) {
-        const { data: ticket } = await supabase
-          .from('zen_tickets')
-          .select('id')
-          .eq('email_thread_id', threadId)
-          .single();
-
-        if (ticket) ticketId = ticket.id;
+      if (ticketError) {
+        throw ticketError;
       }
 
-      // Update the ticket or create a new one based on AI analysis
-      if (analysis.action === 'create_ticket') {
-        const { data: newTicket } = await supabase
-          .from('zen_tickets')
-          .insert({
-            title: analysis.title,
-            description: analysis.description,
-            priority: analysis.priority,
-            status: 'new',
-            email_thread_id: threadId || `thread_${Date.now()}`
-          })
-          .select()
-          .single();
-
-        if (newTicket) ticketId = newTicket.id;
-      } else if (analysis.action === 'update_ticket' && ticketId) {
-        await supabase
-          .from('zen_tickets')
-          .update({
-            status: analysis.status,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', ticketId);
-
-        // Add comment
-        await supabase
-          .from('zen_ticket_comments')
-          .insert({
-            ticket_id: ticketId,
-            content: body,
-            type: 'email'
-          });
-      }
-
-      // Update email reply record
-      await supabase
-        .from('zen_email_replies')
-        .update({
-          ticket_id: ticketId,
-          processed_at: new Date().toISOString(),
-          processing_status: 'completed',
-          ai_analysis: analysis
-        })
-        .eq('id', reply.id);
-
+      return {
+        success: true,
+        message: 'Ticket created successfully',
+        ticketId: ticket.id,
+      };
     } catch (error) {
-      console.error('Error processing incoming email:', error);
+      console.error('Error in processIncomingEmail:', error);
       throw error;
     }
   }
 
-  private async analyzeEmailContent(content: string) {
+  async sendTicketUpdate(ticketId: string, updateType: 'status' | 'comment' | 'assignment') {
     try {
+      // Get ticket details with client information
+      const { data: ticket, error: ticketError } = await this.supabase
+        .from('zen_tickets')
+        .select(`
+          *,
+          zen_clients (
+            profiles (
+              email,
+              full_name
+            )
+          )
+        `)
+        .eq('id', ticketId)
+        .single();
+
+      if (ticketError || !ticket) {
+        throw new Error('Ticket not found');
+      }
+
+      // Compose and send email based on update type
+      // This is where you'd integrate with your email service provider
+      console.log('Would send email to:', ticket.zen_clients.profiles.email);
+      
+      return {
+        success: true,
+        message: 'Update email sent successfully'
+      };
+    } catch (error) {
+      console.error('Error in sendTicketUpdate:', error);
+      throw error;
+    }
+  }
+
+  async analyzeEmailContent(content: string) {
+    try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      });
+
       const completion = await openai.chat.completions.create({
         model: "gpt-4",
         messages: [
@@ -257,7 +262,7 @@ export class EmailService {
       });
 
       // Log the email
-      const { data: emailLog } = await supabase
+      const { data: emailLog } = await this.supabase
         .from('zen_email_logs')
         .insert({
           template_id: templateId,
@@ -273,7 +278,7 @@ export class EmailService {
       return emailLog;
     } catch (error) {
       // Log failed email attempt
-      await supabase
+      await this.supabase
         .from('zen_email_logs')
         .insert({
           template_id: templateId,

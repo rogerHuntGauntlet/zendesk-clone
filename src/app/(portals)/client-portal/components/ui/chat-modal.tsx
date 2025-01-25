@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from './dialog';
 import { Button } from './button';
 import { MessageCircle, Bot, Send } from 'lucide-react';
-import { createClient } from '../../lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface Project {
   id: string;
@@ -65,7 +65,7 @@ export function ChatModal({ isOpen, onClose, projectId, projects, portal }: Chat
     error: null
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  const supabase = createClientComponentClient();
 
   // Scroll to bottom of messages
   useEffect(() => {

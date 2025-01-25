@@ -1,22 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { EmailService } from '../service/EmailService';
 
 export async function POST(req: NextRequest) {
   try {
-    const emailService = new EmailService();
+    const supabase = createClient();
+    const emailService = new EmailService(supabase);
+    
     const body = await req.json();
+    const { from, subject, text, html } = body;
 
-    // Verify webhook signature if using a service like SendGrid or Postmark
-    // This is just a basic example
-    const { from, subject, content, threadId } = body;
+    if (!from || !subject) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
 
-    await emailService.processIncomingEmail(from, subject, content, threadId);
+    const result = await emailService.processIncomingEmail({
+      from,
+      subject,
+      text,
+      html
+    });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error processing incoming email:', error);
     return NextResponse.json(
-      { error: 'Failed to process email' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

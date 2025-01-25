@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '../../lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'sonner';
 import { ChevronDownIcon, ChevronUpIcon, Squares2X2Icon as ViewGridIcon, ListBulletIcon as ViewListIcon, TableCellsIcon as ViewBoardsIcon } from '@heroicons/react/24/outline';
 import { DragDropContext, Draggable, DropResult } from 'react-beautiful-dnd';
@@ -126,7 +126,7 @@ interface TicketFilters {
   };
 }
 
-const supabase = createClient();
+const supabase = createClientComponentClient();
 
 const getPriorityColor = (priority: Priority) => {
   switch (priority) {

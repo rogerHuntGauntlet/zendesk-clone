@@ -1,59 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { EmailService } from '../service/EmailService';
 
-export async function GET(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // Create SendGrid transporter
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.sendgrid.net',
-      port: 587,
-      secure: false,
-      auth: {
-        user: 'apikey', // Must be 'apikey' for SendGrid
-        pass: process.env.EMAIL_SMTP_PASS,
-      },
-    });
+    const supabase = createClient();
+    const emailService = new EmailService(supabase);
+    const { email } = await request.json();
 
-    // Send test email
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM_ADDRESS,
-      to: process.env.EMAIL_FROM_ADDRESS, // Send to same address for testing
-      subject: 'Test Email from ZenDesk Clone',
-      html: `
-        <h1>Test Email</h1>
-        <p>If you're seeing this, the email system is working correctly!</p>
-        <p>Sent at: ${new Date().toISOString()}</p>
-        <hr>
-        <p>Configuration used:</p>
-        <ul>
-          <li>SMTP Host: smtp.sendgrid.net</li>
-          <li>From Address: ${process.env.EMAIL_FROM_ADDRESS}</li>
-          <li>Using SendGrid API Key: Yes</li>
-        </ul>
-      `,
-    });
+    if (!email) {
+      return NextResponse.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Test email sent successfully',
-      config: {
-        host: 'smtp.sendgrid.net',
-        port: 587,
-        from: process.env.EMAIL_FROM_ADDRESS
-      }
+    await emailService.sendTestEmail(email);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Test email sent successfully'
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error sending test email:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to send test email', 
-        details: error.message,
-        config: {
-          host: 'smtp.sendgrid.net',
-          port: 587,
-          from: process.env.EMAIL_FROM_ADDRESS
-        }
-      },
+      { error: 'Failed to send test email' },
       { status: 500 }
     );
   }

@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { nanoid } from 'nanoid';
 import { sendProjectInviteEmail } from '@/app/utils/email';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient();
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const { email, projectId, projectName, inviteType } = await req.json();
+    const { email, projectId, projectName, inviteType } = await request.json();
 
     if (!email || !projectId || !projectName || !inviteType) {
       return NextResponse.json(
-        { message: 'Missing required fields' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
@@ -39,7 +35,7 @@ export async function POST(req: Request) {
     if (insertError) {
       console.error('Error creating invite:', insertError);
       return NextResponse.json(
-        { message: 'Failed to create invite' },
+        { error: 'Failed to create invite' },
         { status: 500 }
       );
     }
@@ -52,11 +48,14 @@ export async function POST(req: Request) {
       inviteToken,
     });
 
-    return NextResponse.json({ message: 'Invite sent successfully' });
+    return NextResponse.json({
+      success: true,
+      message: 'Invite sent successfully'
+    });
   } catch (error) {
     console.error('Error in invite API:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   }

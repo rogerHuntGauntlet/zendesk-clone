@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { createClient } from "../../lib/supabase";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { ScrollArea } from "./scroll-area";
 import { Input } from "./input";
@@ -65,7 +65,7 @@ interface StreamingMessage {
 }
 
 export function TicketDetailView({ isOpen, onClose, ticketId, projectId }: TicketDetailViewProps) {
-  const supabase = createClient();
+  const supabase = createClientComponentClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -544,4 +544,4 @@ export function TicketDetailView({ isOpen, onClose, ticketId, projectId }: Ticke
       </DialogContent>
     </Dialog>
   );
-} 
+}

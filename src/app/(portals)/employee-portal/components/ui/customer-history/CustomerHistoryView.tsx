@@ -1,5 +1,5 @@
 import React from 'react';
-import { createClient } from '../../../lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../client-portal/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../client-portal/components/ui/tabs';
@@ -71,7 +71,7 @@ interface SupabaseTicket {
 }
 
 export function CustomerHistoryView({ customerId, isOpen, onClose }: CustomerHistoryProps) {
-  const supabase = createClient();
+  const supabase = createClientComponentClient();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [tickets, setTickets] = useState<TicketHistory[]>([]);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
@@ -453,4 +453,4 @@ export function CustomerHistoryView({ customerId, isOpen, onClose }: CustomerHis
       </div>
     </div>
   );
-} 
+}

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "../../hooks/useAuth";
-import { createClient } from "../../lib/supabase";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "../../components/ui/alert";
 import { Button } from "../../components/ui/button";
@@ -109,7 +109,7 @@ export default function ProjectDetails() {
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = createClient();
+  const supabase = createClientComponentClient();
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [selectedTicketDetails, setSelectedTicketDetails] = useState<TicketDetails | null>(null);
