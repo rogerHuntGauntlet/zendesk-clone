@@ -19,9 +19,9 @@
   <!-- Vertical line -->
   <path d="M256 138V374" stroke="white" stroke-width="24" stroke-linecap="round"/>
 
-  <!-- Corner dots -->
-  <circle cx="56" cy="56" r="40" fill="#808080"/>
-  <circle cx="456" cy="56" r="40" fill="#22c55e"/>
-  <circle cx="56" cy="456" r="40" fill="#808080"/>
-  <circle cx="456" cy="456" r="40" fill="#808080"/>
+  <!-- Corner squares -->
+  <rect x="0" y="0" width="120" height="120" fill="#808080"/>
+  <rect x="392" y="0" width="120" height="120" fill="#22c55e"/>
+  <rect x="0" y="392" width="120" height="120" fill="#808080"/>
+  <rect x="392" y="392" width="120" height="120" fill="#808080"/>
 </svg>
