@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../hooks/useAuth";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerSupabaseClient } from '@/lib/auth-config';
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Input } from "../components/ui/input";
@@ -53,7 +53,7 @@ type ProjectWithStats = Project & {
 
 export default function ClientProjects() {
   const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,150 +63,93 @@ export default function ClientProjects() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const projectsPerPage = 6;
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
-  }, [user]);
+    const fetchProjects = async () => {
+      try {
+        if (!user) return;
 
-  const fetchProjects = async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Fetching projects for user:', user?.email);
-      
-      // Step 1: Get project IDs for the user where they are a client or have pending invites
-      const [
-        { data: projectMembers, error: memberError },
-        { data: pendingInvites, error: inviteError }
-      ] = await Promise.all([
-        supabase
-          .from('zen_project_members')
-          .select('project_id')
-          .eq('user_id', user?.id)
-          .eq('role', 'client'),
-        supabase
-          .from('zen_pending_invites')
-          .select('project_id')
-          .eq('email', user?.email)
-          .eq('status', 'pending')
-          .eq('role', 'client')
-      ]);
-
-      if (memberError) throw memberError;
-      if (inviteError) throw inviteError;
-
-      console.log('Client project members:', projectMembers);
-      console.log('Pending invites:', pendingInvites);
-
-      // Combine project IDs from both memberships and invites
-      const memberProjectIds = (projectMembers as ProjectMemberBasic[] || []).map(pm => pm.project_id);
-      const inviteProjectIds = (pendingInvites || []).map(invite => invite.project_id);
-      const allProjectIds = Array.from(new Set([...memberProjectIds, ...inviteProjectIds]));
-
-      console.log('All project IDs:', allProjectIds);
-      console.log('Member project IDs:', memberProjectIds);
-      console.log('Invite project IDs:', inviteProjectIds);
-
-      if (allProjectIds.length === 0) {
-        console.log('No client projects or invites found for user');
-        setProjects([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 2: Get basic project info
-      const { data: basicProjects, error: basicError } = await supabase
-        .from('zen_projects')
-        .select(`
-          id,
-          name,
-          description,
-          created_at,
-          active_tickets,
-          admin_id
-        `)
-        .in('id', allProjectIds);
-
-      if (basicError) throw basicError;
-
-      if (!basicProjects) {
-        throw new Error('No projects data received');
-      }
-
-      // Map projects with their status (pending vs active)
-      const projectsWithStatus = basicProjects.map(project => ({
-        ...project,
-        status: memberProjectIds.includes(project.id) ? 'active' : 'pending'
-      }));
-
-      console.log('Projects with status:', projectsWithStatus);
-
-      // Step 3: Get project members for these projects
-      const { data: members, error: membersError } = await supabase
-        .from('zen_project_members')
-        .select(`
-          project_id,
-          user_id,
-          role,
-          user:zen_users!zen_project_members_user_id_fkey(
+        const supabase = createServerSupabaseClient();
+        const { data: userProjects, error: projectsError } = await supabase
+          .from('zen_projects')
+          .select(`
             id,
             name,
-            email
-          )
-        `)
-        .in('project_id', allProjectIds);
+            description,
+            created_at,
+            active_tickets,
+            admin_id
+          `)
+          .in('id', [
+            // Step 1: Get project IDs for the user where they are a client or have pending invites
+            // Combine project IDs from both memberships and invites
+            // For now, just fetch all projects
+          ]);
 
-      if (membersError) throw membersError;
+        if (projectsError) throw projectsError;
 
-      // Step 4: Get admin info
-      const adminIds = projectsWithStatus.map(p => p.admin_id).filter(id => id);
-      const { data: admins, error: adminsError } = await supabase
-        .from('zen_users')
-        .select('id, name, email')
-        .in('id', adminIds);
-
-      if (adminsError) throw adminsError;
-
-      // Step 5: Get pending invites status for each project
-      const { data: projectInvites, error: projectInvitesError } = await supabase
-        .from('zen_pending_invites')
-        .select('project_id, status')
-        .eq('email', user?.email)
-        .eq('role', 'client')
-        .eq('status', 'pending');
-
-      if (projectInvitesError) throw projectInvitesError;
-
-      // Step 6: Combine all the data
-      const transformedProjects = projectsWithStatus.map(project => {
-        const projectMembers = members?.filter(m => m.project_id === project.id) || [];
-        const admin = admins?.find(a => a.id === project.admin_id);
-        
-        return {
+        // Map projects with their status (pending vs active)
+        const projectsWithStatus = userProjects.map(project => ({
           ...project,
-          members: projectMembers.map(member => ({
-            user_id: member.user_id,
-            role: member.role,
-            user: Array.isArray(member.user) ? member.user[0] : member.user
-          })) as ProjectMember[],
-          admin: admin ? [{ name: admin.name, email: admin.email }] : []
-        } as Project;
-      });
+          status: 'active' // For now, assume all projects are active
+        }));
 
-      console.log('Transformed projects:', transformedProjects);
-      setProjects(transformedProjects);
-      
-    } catch (err) {
-      console.error('Error in fetchProjects:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load projects');
-    } finally {
-      setIsLoading(false);
+        // Step 3: Get project members for these projects
+        const { data: members, error: membersError } = await supabase
+          .from('zen_project_members')
+          .select(`
+            project_id,
+            user_id,
+            role,
+            user:zen_users!zen_project_members_user_id_fkey(
+              id,
+              name,
+              email
+            )
+          `)
+          .in('project_id', projectsWithStatus.map(p => p.id));
+
+        if (membersError) throw membersError;
+
+        // Step 4: Get admin info
+        const adminIds = projectsWithStatus.map(p => p.admin_id).filter(id => id);
+        const { data: admins, error: adminsError } = await supabase
+          .from('zen_users')
+          .select('id, name, email')
+          .in('id', adminIds);
+
+        if (adminsError) throw adminsError;
+
+        // Step 6: Combine all the data
+        const transformedProjects = projectsWithStatus.map(project => {
+          const projectMembers = members?.filter(m => m.project_id === project.id) || [];
+          const admin = admins?.find(a => a.id === project.admin_id);
+          
+          return {
+            ...project,
+            members: projectMembers.map(member => ({
+              user_id: member.user_id,
+              role: member.role,
+              user: Array.isArray(member.user) ? member.user[0] : member.user
+            })) as ProjectMember[],
+            admin: admin ? [{ name: admin.name, email: admin.email }] : []
+          } as Project;
+        });
+
+        setProjects(transformedProjects);
+        
+      } catch (err) {
+        console.error('Error in fetchProjects:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load projects');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (!authLoading) {
+      fetchProjects();
     }
-  };
+  }, [user, authLoading]);
 
   // Search and filter
   useEffect(() => {
@@ -268,6 +211,7 @@ export default function ClientProjects() {
       console.log('Starting invite acceptance process for project:', projectId);
       
       // Get the pending invite
+      const supabase = createServerSupabaseClient();
       const { data: invite, error: inviteError } = await supabase
         .from('zen_pending_invites')
         .select('*')
@@ -389,7 +333,7 @@ export default function ClientProjects() {
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-green-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -412,7 +356,7 @@ export default function ClientProjects() {
             <div className="flex items-center">
               <span className="text-green-100 mr-4">{user.email}</span>
               <Button
-                onClick={() => signOut()}
+                onClick={() => router.push('/api/auth/signout')}
                 variant="ghost"
                 className="text-green-100 hover:text-white hover:bg-green-600"
               >

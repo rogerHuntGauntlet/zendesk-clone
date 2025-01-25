@@ -16,6 +16,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import AssignmentsModal from '../components/ui/AssignmentsModal';
 import TeamManagement from '../components/ui/team-management/TeamManagement';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
+import { createServerSupabaseClient } from '@/lib/auth-config';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -67,38 +68,18 @@ export default function ProjectsPage() {
           return;
         }
 
-        const response = await fetch(`/admin-portal/api/projects?userId=${user.id}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to fetch projects');
-        }
-        const data = await response.json();
-        setProjects(data);
-        setFilteredProjects(data);
-        
-        // Calculate summary stats
-        const stats = data.reduce((acc: ProjectStats, project: Project) => {
-          acc.totalProjects++;
-          if (project.status === 'active') acc.activeProjects++;
-          acc.totalTickets += project.ticketCount || 0;
-          acc.activeTickets += project.active_tickets || 0;
-          acc.totalClients += project.clientCount || 0;
-          acc.totalEmployees += project.employeeCount || 0;
-          return acc;
-        }, {
-          totalProjects: 0,
-          activeProjects: 0,
-          totalTickets: 0,
-          activeTickets: 0,
-          totalClients: 0,
-          totalEmployees: 0
-        });
-        
-        setStats(stats);
-        setError(null);
-      } catch (error) {
-        console.error("Failed to fetch projects:", error);
-        setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+        const supabase = createServerSupabaseClient();
+        const { data: userProjects, error: projectsError } = await supabase
+          .from('zen_projects')
+          .select('*')
+          .eq('admin_id', user.id);
+
+        if (projectsError) throw projectsError;
+
+        setProjects(userProjects || []);
+      } catch (err) {
+        console.error('Error fetching projects:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -166,12 +147,15 @@ export default function ProjectsPage() {
       }
 
       // Refresh projects list
-      const projectsResponse = await fetch(`/admin-portal/api/projects?userId=${user.id}`);
-      if (!projectsResponse.ok) {
-        throw new Error('Failed to refresh projects');
-      }
-      const updatedProjects = await projectsResponse.json();
-      setProjects(updatedProjects);
+      const supabase = createServerSupabaseClient();
+      const { data: userProjects, error: projectsError } = await supabase
+        .from('zen_projects')
+        .select('*')
+        .eq('admin_id', user.id);
+
+      if (projectsError) throw projectsError;
+
+      setProjects(userProjects || []);
       toast.success('Project created successfully');
       setIsNewProjectModalOpen(false);
     } catch (error) {
@@ -244,12 +228,15 @@ export default function ProjectsPage() {
 
           // Refresh projects list
           const user = await getCurrentUser();
-          const projectsResponse = await fetch(`/admin-portal/api/projects?userId=${user?.id}`);
-          if (!projectsResponse.ok) {
-            throw new Error('Failed to refresh projects');
-          }
-          const updatedProjects = await projectsResponse.json();
-          setProjects(updatedProjects);
+          const supabase = createServerSupabaseClient();
+          const { data: userProjects, error: projectsError } = await supabase
+            .from('zen_projects')
+            .select('*')
+            .eq('admin_id', user.id);
+
+          if (projectsError) throw projectsError;
+
+          setProjects(userProjects || []);
           setSelectedProjects([]); // Clear selection after successful action
           toast.success(`Successfully archived ${selectedProjects.length} project${selectedProjects.length !== 1 ? 's' : ''}`, {
             id: toastId
@@ -297,12 +284,15 @@ export default function ProjectsPage() {
 
           // Refresh projects list
           const user = await getCurrentUser();
-          const projectsResponse = await fetch(`/admin-portal/api/projects?userId=${user?.id}`);
-          if (!projectsResponse.ok) {
-            throw new Error('Failed to refresh projects');
-          }
-          const updatedProjects = await projectsResponse.json();
-          setProjects(updatedProjects);
+          const supabase = createServerSupabaseClient();
+          const { data: userProjects, error: projectsError } = await supabase
+            .from('zen_projects')
+            .select('*')
+            .eq('admin_id', user.id);
+
+          if (projectsError) throw projectsError;
+
+          setProjects(userProjects || []);
           setSelectedProjects([]); // Clear selection after successful action
           toast.success(`Successfully updated ${selectedProjects.length} project${selectedProjects.length !== 1 ? 's' : ''} to ${status}`, {
             id: toastId
