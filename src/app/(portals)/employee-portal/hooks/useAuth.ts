@@ -84,6 +84,8 @@ export function useAuth() {
 
   const signIn = async (email: string, password: string, rememberMe: boolean) => {
     try {
+      console.log('[useAuth] Attempting sign in for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -92,7 +94,12 @@ export function useAuth() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useAuth] Sign in error:', error);
+        throw error;
+      }
+
+      console.log('[useAuth] Sign in successful for user:', data.user.id);
 
       // Check if user exists in zen_users
       const { data: userData, error: userError } = await supabase
@@ -101,7 +108,11 @@ export function useAuth() {
         .eq('id', data.user.id)
         .single();
 
+      console.log('[useAuth] zen_users check:', { userData, userError });
+
+      // Create user record if it doesn't exist
       if (!userData && !userError) {
+        console.log('[useAuth] Creating new user record');
         const { error: createUserError } = await supabase
           .from('zen_users')
           .insert([
@@ -114,12 +125,55 @@ export function useAuth() {
           ]);
 
         if (createUserError) {
+          console.error('[useAuth] Failed to create user record:', createUserError);
           throw new Error('Failed to create user record');
         }
+        console.log('[useAuth] User record created successfully');
       } else if (userError && userError.code !== 'PGRST116') {
+        console.error('[useAuth] Error checking user record:', userError);
         throw new Error('Failed to verify user status');
       }
 
+      // Check if employee record exists
+      console.log('[useAuth] Checking for existing employee record');
+      const { data: employeeData, error: employeeCheckError } = await supabase
+        .from('zen_employees')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .single();
+
+      console.log('[useAuth] Employee record check:', { employeeData, employeeCheckError });
+
+      // Create employee record if it doesn't exist
+      if (!employeeData && (!employeeCheckError || employeeCheckError.code === 'PGRST116')) {
+        console.log('[useAuth] Creating new employee record');
+        const { error: createEmployeeError } = await supabase
+          .from('zen_employees')
+          .insert([
+            {
+              user_id: data.user.id,
+              department: userData?.department || 'General',
+              performance: {
+                customerRating: 0,
+                avgResponseTime: '0h 0m',
+                resolvedTickets: 0
+              },
+              active_tickets: 0,
+              specialties: []
+            }
+          ]);
+
+        if (createEmployeeError) {
+          console.error('[useAuth] Failed to create employee record:', createEmployeeError);
+          throw new Error('Failed to create employee record');
+        }
+        console.log('[useAuth] Employee record created successfully');
+      } else if (employeeCheckError && employeeCheckError.code !== 'PGRST116') {
+        console.error('[useAuth] Error checking employee record:', employeeCheckError);
+        throw new Error('Failed to verify employee status');
+      }
+
+      console.log('[useAuth] Sign in process completed successfully');
       return data;
     } catch (error: any) {
       console.error('[useAuth] Sign in error:', error);
@@ -154,6 +208,27 @@ export function useAuth() {
 
       if (profileError) {
         throw new Error('Failed to create user profile');
+      }
+
+      // Create employee record
+      const { error: employeeError } = await supabase
+        .from('zen_employees')
+        .insert([
+          {
+            user_id: authData.user.id,
+            department: data.department,
+            performance: {
+              customerRating: 0,
+              avgResponseTime: '0h 0m',
+              resolvedTickets: 0
+            },
+            active_tickets: 0,
+            specialties: []
+          }
+        ]);
+
+      if (employeeError) {
+        throw new Error('Failed to create employee record');
       }
     }
 

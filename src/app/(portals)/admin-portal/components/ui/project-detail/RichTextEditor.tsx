@@ -21,6 +21,12 @@ export function RichTextEditor({ value, onChange, placeholder = 'Start typing...
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-invert max-w-none'
+      }
+    },
+    immediatelyRender: false
   });
 
   // Update editor content when value prop changes

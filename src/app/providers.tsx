@@ -1,6 +1,7 @@
 'use client';
 
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { SessionContextProvider } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState } from 'react';
 
@@ -24,7 +25,9 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <SupabaseContext.Provider value={supabase}>
-      {children}
+      <SessionContextProvider supabaseClient={supabase}>
+        {children}
+      </SessionContextProvider>
     </SupabaseContext.Provider>
   );
 }

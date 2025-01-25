@@ -90,34 +90,24 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
   };
 
   const loadNotes = async () => {
-    setIsLoading(true);
     try {
-      // First get the notes
+      setIsLoading(true);
       const { data: notesData, error: notesError } = await supabase
         .from('zen_notes')
-        .select('*')
+        .select(`
+          *,
+          creator:created_by(email)
+        `)
         .eq('project_id', projectId)
         .order('created_at', { ascending: true });
 
       if (notesError) throw notesError;
 
-      // Then get the user emails for all creators
-      const creatorIds = [...new Set(notesData?.map(note => note.created_by) || [])];
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, email')
-        .in('id', creatorIds);
-
-      if (userError) throw userError;
-
-      // Create a map of user IDs to emails
-      const userEmails = new Map(userData?.map(user => [user.id, user.email]));
-
-      // Combine the data
+      // Format the notes data
       const formattedNotes = (notesData || []).map(note => ({
         ...note,
         user: {
-          email: userEmails.get(note.created_by) || ''
+          email: note.creator?.email || ''
         }
       }));
 
@@ -142,7 +132,7 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
 
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('zen_users')
         .select('id, email')
         .ilike('email', `%${query}%`)
         .limit(5);
@@ -175,13 +165,31 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
   };
 
   const submitNote = async () => {
-    if (!newNote.trim()) return;
+    console.log('Submitting note with:', {
+      projectId,
+      currentUser,
+      noteContent: newNote.trim(),
+    });
+
+    if (!newNote.trim()) {
+      console.log('Note content is empty, returning');
+      return;
+    }
     if (!projectId) {
+      console.log('Project ID is missing');
       toast.error('Project ID is required to add notes');
+      return;
+    }
+    if (!currentUser?.id) {
+      console.log('Current user ID is missing:', currentUser);
+      toast.error('Please log in again to add notes');
+      // Refresh the page to trigger a new auth check
+      window.location.reload();
       return;
     }
 
     try {
+      console.log('Verifying project exists for ID:', projectId);
       // First verify the project exists
       const { data: projectExists, error: projectCheckError } = await supabase
         .from('zen_projects')
@@ -189,14 +197,26 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
         .eq('id', projectId)
         .single();
 
+      console.log('Project check result:', { projectExists, projectCheckError });
+
       if (projectCheckError || !projectExists) {
+        console.error('Project verification failed:', { projectCheckError });
         throw new Error('Project not found. Please refresh the page and try again.');
       }
 
       // Extract mentions from content
       const mentions = newNote.match(/@(\w+)/g)?.map(m => m.substring(1)) || [];
+      console.log('Extracted mentions:', mentions);
       
       // Create the note
+      console.log('Creating note with data:', {
+        content: newNote,
+        created_by: currentUser.id,
+        project_id: projectId,
+        mentions: mentions
+      });
+
+      // First insert the note
       const { data: noteData, error: noteError } = await supabase
         .from('zen_notes')
         .insert({
@@ -205,11 +225,18 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
           project_id: projectId,
           mentions: mentions
         })
-        .select()
+        .select('*')
         .single();
 
+      console.log('Note creation result:', { noteData, noteError });
+
       if (noteError) {
-        console.error('Note creation error:', noteError);
+        console.error('Note creation error details:', {
+          code: noteError.code,
+          message: noteError.message,
+          details: noteError.details,
+          hint: noteError.hint
+        });
         throw new Error('Failed to create note');
       }
 
@@ -218,6 +245,7 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
 
       // Add the new note to the list at the bottom
       if (noteData) {
+        console.log('Adding new note to state:', noteData);
         setNotes(prevNotes => [...prevNotes, {
           ...noteData,
           user: {
@@ -226,7 +254,7 @@ export default function SharedNotes({ projectId, currentUser }: SharedNotesProps
         }]);
       }
     } catch (error) {
-      console.error('Error submitting note:', error);
+      console.error('Full error details:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to submit note');
     }
   };

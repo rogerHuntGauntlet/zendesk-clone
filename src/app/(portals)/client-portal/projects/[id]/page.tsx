@@ -97,7 +97,6 @@ interface TicketDetails {
     source: string;
     created_at: string;
     created_by: string;
-    media_url: string | null;
     metadata: any;
   }>;
 }
@@ -290,7 +289,6 @@ export default function ProjectDetails() {
             source,
             created_at,
             created_by,
-            media_url,
             metadata
           )
         `)

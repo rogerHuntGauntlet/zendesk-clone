@@ -71,7 +71,6 @@ interface ProjectClient {
   user: {
     name: string;
     email: string;
-    company: string;
   };
 }
 
@@ -218,7 +217,6 @@ interface SupabaseProjectClient {
   user: {
     name: string;
     email: string;
-    company: string;
   };
 }
 
@@ -564,7 +562,7 @@ export default function ProjectDetailPage() {
         .from('zen_project_members')
         .select(`
           *,
-          user:zen_users(
+          user:zen_users!zen_project_members_user_id_fkey(
             name,
             email,
             role
@@ -579,7 +577,7 @@ export default function ProjectDetailPage() {
         .from('zen_tickets')
         .select(`
           *,
-          assignee:zen_users(
+          assignee:zen_users!zen_tickets_assigned_to_fkey(
             name,
             email
           )
@@ -594,10 +592,9 @@ export default function ProjectDetailPage() {
         .from('zen_project_members')
         .select(`
           *,
-          user:zen_users(
+          user:zen_users!zen_project_members_user_id_fkey(
             name,
-            email,
-            company
+            email
           )
         `)
         .eq('project_id', params?.id as string)
@@ -605,10 +602,16 @@ export default function ProjectDetailPage() {
 
       if (clientsError) throw clientsError;
 
-      // Transform and set the data with proper typing
+      // Format the clients data
+      const formattedClients = (clientsData || []).map(client => ({
+        ...client,
+        name: client.user?.name || '',
+        email: client.user?.email || ''
+      }));
+
       setMembers(membersData as unknown as ProjectMember[]);
       setTickets(ticketsData as unknown as Ticket[]);
-      setClients(clientsData as unknown as ProjectClient[]);
+      setClients(formattedClients);
 
     } catch (error) {
       console.error('Error fetching project data:', error);

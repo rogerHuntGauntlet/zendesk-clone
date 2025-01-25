@@ -66,18 +66,33 @@ export async function middleware(request: NextRequest) {
 
     // If accessing employee portal, verify employee role
     if (path.startsWith('/employee-portal')) {
-      console.log('[Middleware] Verifying employee role');
+      console.log('[Middleware] Verifying employee role for user:', session.user.id);
+      console.log('[Middleware] User email:', session.user.email);
+      
+      // First check zen_users table
+      const { data: userData, error: userError } = await supabase
+        .from('zen_users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      console.log('[Middleware] zen_users check:', { userData, userError });
+
+      // Then check zen_employees table
       const { data: employee, error: employeeError } = await supabase
         .from('zen_employees')
         .select('*')
         .eq('user_id', session.user.id)
         .single();
 
+      console.log('[Middleware] zen_employees check:', { employee, employeeError });
+
       if (employeeError || !employee) {
         console.error('[Middleware] Employee verification failed:', employeeError || 'User is not an employee');
+        console.log('[Middleware] Redirecting to homepage');
         return NextResponse.redirect(new URL('/', request.url));
       }
-      console.log('[Middleware] Employee role verified');
+      console.log('[Middleware] Employee role verified successfully');
     }
 
     return response;
