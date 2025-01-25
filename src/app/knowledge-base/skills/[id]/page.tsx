@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerSupabaseClient } from '@/lib/auth-config';
 import { FiArrowLeft, FiCheckCircle, FiBook, FiAward } from 'react-icons/fi';
 
 interface Skill {
@@ -34,73 +34,69 @@ interface UserProgress {
 
 export default function SkillDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const [loading, setLoading] = useState(true);
   const [skill, setSkill] = useState<Skill | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSkillDetails = async () => {
-    try {
-      setLoading(true);
-      // Get user session
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Fetch skill details
-      const { data: skillData, error: skillError } = await supabase
-        .from('zen_skills')
-        .select('*')
-        .eq('id', params.id)
-        .single();
-
-      if (skillError) throw skillError;
-      setSkill(skillData);
-
-      // First get learning paths for this skill
-      const { data: pathsData, error: pathsError } = await supabase
-        .from('zen_learning_paths')
-        .select('id')
-        .eq('skill_id', params.id);
-
-      if (pathsError) throw pathsError;
-
-      if (pathsData && pathsData.length > 0) {
-        // Get learning materials for these paths
-        const pathIds = pathsData.map(path => path.id);
-        const { data: materialsData, error: materialsError } = await supabase
-          .from('zen_learning_materials')
-          .select('*')
-          .in('path_id', pathIds)
-          .order('order_index');
-
-        if (materialsError) throw materialsError;
-        setSkill(prevSkill => ({ ...prevSkill!, materials: materialsData || [] }));
-
-        // Get user progress for these materials
-        const { data: progressData, error: progressError } = await supabase
-          .from('zen_user_progress')
-          .select('*')
-          .in('material_id', materialsData?.map(m => m.id) || [])
-          .eq('user_id', user?.id);
-
-        if (progressError) throw progressError;
-        setUserProgress(progressData || []);
-      } else {
-        setSkill(prevSkill => ({ ...prevSkill!, materials: [] }));
-        setUserProgress([]);
-      }
-    } catch (error) {
-      console.error('Error fetching skill details:', error);
-      setError('Failed to load skill details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchSkillDetails();
-  }, [params.id, supabase]);
+    const fetchData = async () => {
+      try {
+        const supabase = createServerSupabaseClient();
+
+        // Fetch skill details
+        const { data: skillData, error: skillError } = await supabase
+          .from('zen_skills')
+          .select('*')
+          .eq('id', params.id)
+          .single();
+
+        if (skillError) throw skillError;
+        setSkill(skillData);
+
+        // First get learning paths for this skill
+        const { data: pathsData, error: pathsError } = await supabase
+          .from('zen_learning_paths')
+          .select('id')
+          .eq('skill_id', params.id);
+
+        if (pathsError) throw pathsError;
+
+        if (pathsData && pathsData.length > 0) {
+          // Get learning materials for these paths
+          const pathIds = pathsData.map(path => path.id);
+          const { data: materialsData, error: materialsError } = await supabase
+            .from('zen_learning_materials')
+            .select('*')
+            .in('path_id', pathIds)
+            .order('order_index');
+
+          if (materialsError) throw materialsError;
+          setSkill(prevSkill => ({ ...prevSkill!, materials: materialsData || [] }));
+
+          // Get user progress for these materials
+          const { data: progressData, error: progressError } = await supabase
+            .from('zen_user_progress')
+            .select('*')
+            .in('material_id', materialsData?.map(m => m.id) || [])
+            .eq('user_id', supabase.auth.user()?.id);
+
+          if (progressError) throw progressError;
+          setUserProgress(progressData || []);
+        } else {
+          setSkill(prevSkill => ({ ...prevSkill!, materials: [] }));
+          setUserProgress([]);
+        }
+      } catch (err) {
+        console.error('Error fetching skill details:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [params.id]);
 
   const handleMaterialClick = (materialId: string) => {
     router.push(`/knowledge-base/materials/${materialId}`);
@@ -232,4 +228,4 @@ export default function SkillDetailPage({ params }: { params: { id: string } }) 
       </div>
     </div>
   );
-} 
+}

@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerSupabaseClient } from '@/lib/auth-config';
 import { FiBook, FiAward, FiTrendingUp, FiCheckCircle } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 
@@ -40,77 +40,69 @@ interface UserProgress {
 
 export default function KnowledgeBasePage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [userSkills, setUserSkills] = useState<UserSkill[]>([]);
-  const [learningPaths, setLearningPaths] = useState<LearningPath[]>([]);
-  const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
-  const [activeTab, setActiveTab] = useState<'skills' | 'paths' | 'progress'>('skills');
   const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    skills: [],
+    userSkills: [],
+    learningPaths: [],
+    userProgress: []
+  });
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push('/login');
-        return;
+    const fetchData = async () => {
+      try {
+        const supabase = createServerSupabaseClient();
+        
+        // Fetch skills
+        const { data: skillsData, error: skillsError } = await supabase
+          .from('zen_skills')
+          .select('*')
+          .order('category', { ascending: true });
+
+        if (skillsError) throw skillsError;
+
+        // Fetch user's skills
+        const { data: userSkillsData, error: userSkillsError } = await supabase
+          .from('zen_user_skills')
+          .select(`
+            *,
+            skill:zen_skills(*)
+          `)
+          .eq('user_id', supabase.auth.user().id);
+
+        if (userSkillsError) throw userSkillsError;
+
+        // Fetch learning paths
+        const { data: pathsData, error: pathsError } = await supabase
+          .from('zen_learning_paths')
+          .select('*')
+          .order('order_index', { ascending: true });
+
+        if (pathsError) throw pathsError;
+
+        // Fetch user's progress
+        const { data: progressData, error: progressError } = await supabase
+          .from('zen_user_progress')
+          .select('*')
+          .eq('user_id', supabase.auth.user().id);
+
+        if (progressError) throw progressError;
+
+        setData({
+          skills: skillsData || [],
+          userSkills: userSkillsData || [],
+          learningPaths: pathsData || [],
+          userProgress: progressData || []
+        });
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
-      fetchData();
     };
-    
-    checkAuth();
+
+    fetchData();
   }, [router]);
-
-  const fetchData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Fetch skills
-      const { data: skillsData, error: skillsError } = await supabase
-        .from('zen_skills')
-        .select('*')
-        .order('category', { ascending: true });
-
-      if (skillsError) throw skillsError;
-      setSkills(skillsData);
-
-      // Fetch user's skills
-      const { data: userSkillsData, error: userSkillsError } = await supabase
-        .from('zen_user_skills')
-        .select(`
-          *,
-          skill:zen_skills(*)
-        `)
-        .eq('user_id', user.id);
-
-      if (userSkillsError) throw userSkillsError;
-      setUserSkills(userSkillsData);
-
-      // Fetch learning paths
-      const { data: pathsData, error: pathsError } = await supabase
-        .from('zen_learning_paths')
-        .select('*')
-        .order('order_index', { ascending: true });
-
-      if (pathsError) throw pathsError;
-      setLearningPaths(pathsData);
-
-      // Fetch user's progress
-      const { data: progressData, error: progressError } = await supabase
-        .from('zen_user_progress')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (progressError) throw progressError;
-      setUserProgress(progressData);
-
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      setLoading(false);
-    }
-  };
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -195,8 +187,8 @@ export default function KnowledgeBasePage() {
         {/* Skills Tab */}
         {activeTab === 'skills' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {skills.map((skill) => {
-              const userSkill = userSkills.find(us => us.skill_id === skill.id);
+            {data.skills.map((skill) => {
+              const userSkill = data.userSkills.find(us => us.skill_id === skill.id);
               return (
                 <div
                   key={skill.id}
@@ -228,8 +220,8 @@ export default function KnowledgeBasePage() {
         {/* Learning Paths Tab */}
         {activeTab === 'paths' && (
           <div className="space-y-6">
-            {learningPaths.map((path) => {
-              const relatedSkill = skills.find(s => s.id === path.skill_id);
+            {data.learningPaths.map((path) => {
+              const relatedSkill = data.skills.find(s => s.id === path.skill_id);
               return (
                 <div
                   key={path.id}
@@ -258,7 +250,7 @@ export default function KnowledgeBasePage() {
             <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6">
               <h3 className="text-xl font-semibold text-white mb-6">My Skills</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {userSkills.map((userSkill) => (
+                {data.userSkills.map((userSkill) => (
                   <div
                     key={userSkill.id}
                     className="bg-white/5 rounded-lg p-4"
@@ -283,7 +275,7 @@ export default function KnowledgeBasePage() {
             <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6">
               <h3 className="text-xl font-semibold text-white mb-6">Learning Progress</h3>
               <div className="space-y-4">
-                {userProgress.map((progress) => (
+                {data.userProgress.map((progress) => (
                   <div
                     key={progress.id}
                     className="bg-white/5 rounded-lg p-4"

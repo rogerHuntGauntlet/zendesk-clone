@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerSupabaseClient } from '@/lib/auth-config';
 import { FiArrowLeft, FiCheckCircle, FiBook, FiAward } from 'react-icons/fi';
 
 interface LearningPath {
@@ -40,17 +40,15 @@ interface UserProgress {
 
 export default function LearningPathDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const [loading, setLoading] = useState(true);
   const [path, setPath] = useState<LearningPath | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get user session
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+        const supabase = createServerSupabaseClient();
 
         // Fetch path details with related skill
         const { data: pathData, error: pathError } = await supabase
@@ -68,6 +66,7 @@ export default function LearningPathDetailPage({ params }: { params: { id: strin
           .single();
 
         if (pathError) throw pathError;
+        setPath(pathData);
 
         // Fetch learning materials
         const { data: materialsData, error: materialsError } = await supabase
@@ -82,22 +81,24 @@ export default function LearningPathDetailPage({ params }: { params: { id: strin
         const { data: progressData, error: progressError } = await supabase
           .from('zen_user_progress')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', supabase.auth.user()?.id)
           .eq('path_id', params.id);
 
-        if (progressError) throw progressError;
-
-        setPath({ ...pathData, materials: materialsData });
+        if (progressError && progressError.code !== 'PGRST116') {
+          throw progressError;
+        }
         setUserProgress(progressData || []);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching data:', error);
+
+      } catch (err) {
+        console.error('Error fetching path details:', err);
+        setError(err.message);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [params.id, supabase]);
+  }, [params.id]);
 
   const handleMaterialClick = (materialId: string) => {
     router.push(`/knowledge-base/materials/${materialId}`);

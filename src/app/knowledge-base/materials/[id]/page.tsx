@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerSupabaseClient } from '@/lib/auth-config';
 import { FiArrowLeft } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -31,19 +31,15 @@ interface UserProgress {
 
 export default function MaterialDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const [loading, setLoading] = useState(true);
   const [material, setMaterial] = useState<LearningMaterial | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMaterialDetails = async () => {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        // Get user session
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
+        const supabase = createServerSupabaseClient();
 
         // Fetch material details
         const { data: materialData, error: materialError } = await supabase
@@ -55,47 +51,32 @@ export default function MaterialDetailPage({ params }: { params: { id: string } 
         if (materialError) throw materialError;
         setMaterial(materialData);
 
-        // Fetch user progress
+        // Fetch user's progress
         const { data: progressData, error: progressError } = await supabase
           .from('zen_user_progress')
           .select('*')
           .eq('material_id', params.id)
-          .eq('user_id', user.id)
           .single();
 
-        if (progressError && progressError.code !== 'PGRST116') { // Ignore "not found" error
+        if (progressError && progressError.code !== 'PGRST116') {
           throw progressError;
         }
         setUserProgress(progressData);
 
-        // If no progress exists, create initial progress
-        if (!progressData) {
-          const { data: newProgress, error: createError } = await supabase
-            .from('zen_user_progress')
-            .insert([{
-              user_id: user.id,
-              material_id: params.id,
-              status: 'in_progress'
-            }])
-            .select()
-            .single();
-
-          if (createError) throw createError;
-          setUserProgress(newProgress);
-        }
-      } catch (error) {
-        console.error('Error fetching material details:', error);
-        setError('Failed to load material details');
+      } catch (err) {
+        console.error('Error fetching material details:', err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMaterialDetails();
-  }, [params.id, supabase]);
+    fetchData();
+  }, [params.id]);
 
   const updateProgress = async (status: string) => {
     try {
+      const supabase = createServerSupabaseClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
