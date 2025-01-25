@@ -1,9 +1,4 @@
-import OpenAI from 'openai';
 import { createParser } from 'eventsource-parser';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function OpenAIStream(params: {
   model: string;
@@ -11,13 +6,17 @@ export async function OpenAIStream(params: {
   temperature?: number;
   stream?: boolean;
 }) {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ''}`,
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
     },
     method: 'POST',
     body: JSON.stringify({
@@ -49,24 +48,15 @@ export async function OpenAIStream(params: {
           } catch (e) {
             controller.error(e);
           }
-        }
+        },
       });
 
-      // https://web.dev/streams/#asynchronous-iteration
-      const reader = res.body?.getReader();
-      try {
-        while (true) {
-          const { done, value } = await reader!.read();
-          if (done) {
-            break;
-          }
-          parser.feed(decoder.decode(value));
-        }
-      } catch (e) {
-        controller.error(e);
+      for await (const chunk of res.body as any) {
+        const text = decoder.decode(chunk);
+        parser.feed(text);
       }
     },
   });
 
   return stream;
-} 
+}
