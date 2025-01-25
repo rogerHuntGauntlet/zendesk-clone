@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
-import { createServerSupabaseClient } from '@/lib/auth-config';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { FiBook, FiAward, FiTrendingUp, FiCheckCircle } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 
@@ -51,8 +51,15 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createServerSupabaseClient();
-        
+        const supabase = createClientComponentClient();
+
+        // Get user session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/login');
+          return;
+        }
+
         // Fetch skills
         const { data: skillsData, error: skillsError } = await supabase
           .from('zen_skills')
@@ -68,7 +75,7 @@ export default function KnowledgeBasePage() {
             *,
             skill:zen_skills(*)
           `)
-          .eq('user_id', supabase.auth.user().id);
+          .eq('user_id', session.user.id);
 
         if (userSkillsError) throw userSkillsError;
 
@@ -84,7 +91,7 @@ export default function KnowledgeBasePage() {
         const { data: progressData, error: progressError } = await supabase
           .from('zen_user_progress')
           .select('*')
-          .eq('user_id', supabase.auth.user().id);
+          .eq('user_id', session.user.id);
 
         if (progressError) throw progressError;
 

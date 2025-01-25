@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/auth-config';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { FiArrowLeft } from 'react-icons/fi';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -39,7 +39,14 @@ export default function MaterialDetailPage({ params }: { params: { id: string } 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createServerSupabaseClient();
+        const supabase = createClientComponentClient();
+
+        // Get user session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/login');
+          return;
+        }
 
         // Fetch material details
         const { data: materialData, error: materialError } = await supabase
@@ -51,11 +58,12 @@ export default function MaterialDetailPage({ params }: { params: { id: string } 
         if (materialError) throw materialError;
         setMaterial(materialData);
 
-        // Fetch user's progress
+        // Fetch user progress
         const { data: progressData, error: progressError } = await supabase
           .from('zen_user_progress')
           .select('*')
           .eq('material_id', params.id)
+          .eq('user_id', session.user.id)
           .single();
 
         if (progressError && progressError.code !== 'PGRST116') {
@@ -72,19 +80,19 @@ export default function MaterialDetailPage({ params }: { params: { id: string } 
     };
 
     fetchData();
-  }, [params.id]);
+  }, [params.id, router]);
 
   const updateProgress = async (status: string) => {
     try {
-      const supabase = createServerSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const supabase = createClientComponentClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
 
       const { error } = await supabase
         .from('zen_user_progress')
         .update({ status })
         .eq('material_id', params.id)
-        .eq('user_id', user.id);
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
       setUserProgress(prev => prev ? { ...prev, status } : null);

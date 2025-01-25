@@ -2,34 +2,34 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/auth-config';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { FiArrowLeft, FiCheckCircle, FiBook, FiAward } from 'react-icons/fi';
 
 interface Skill {
   id: string;
   name: string;
   description: string;
-  category: string;
   level: string;
-  materials: LearningMaterial[];
+  materials?: LearningMaterial[];
 }
 
 interface LearningMaterial {
   id: string;
   title: string;
   description: string;
-  type: 'video' | 'article' | 'quiz';
   content: string;
-  order: number;
+  path_id: string;
+  order_index: number;
 }
 
 interface UserProgress {
   id: string;
+  user_id: string;
   material_id: string;
-  status: 'not_started' | 'in_progress' | 'completed';
-  score?: number;
+  status: string;
+  completed_at: string | null;
 }
 
 export default function SkillDetailPage({ params }: { params: { id: string } }) {
@@ -42,7 +42,14 @@ export default function SkillDetailPage({ params }: { params: { id: string } }) 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createServerSupabaseClient();
+        const supabase = createClientComponentClient();
+
+        // Get user session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push('/login');
+          return;
+        }
 
         // Fetch skill details
         const { data: skillData, error: skillError } = await supabase
@@ -79,7 +86,7 @@ export default function SkillDetailPage({ params }: { params: { id: string } }) 
             .from('zen_user_progress')
             .select('*')
             .in('material_id', materialsData?.map(m => m.id) || [])
-            .eq('user_id', supabase.auth.user()?.id);
+            .eq('user_id', session.user.id);
 
           if (progressError) throw progressError;
           setUserProgress(progressData || []);
@@ -96,7 +103,7 @@ export default function SkillDetailPage({ params }: { params: { id: string } }) 
     };
 
     fetchData();
-  }, [params.id]);
+  }, [params.id, router]);
 
   const handleMaterialClick = (materialId: string) => {
     router.push(`/knowledge-base/materials/${materialId}`);
@@ -135,16 +142,8 @@ export default function SkillDetailPage({ params }: { params: { id: string } }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse space-y-8">
-            <div className="h-8 bg-white/10 rounded w-1/4"></div>
-            <div className="space-y-6">
-              <div className="h-32 bg-white/10 rounded-lg"></div>
-              <div className="h-64 bg-white/10 rounded-lg"></div>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-green-900 to-green-700 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
       </div>
     );
   }
