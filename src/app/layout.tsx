@@ -10,6 +10,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "OHFdesk",
   description: "OHF does Zendesk",
+  icons: {
+    icon: '/icon.svg'
+  }
 };
 
 export default function RootLayout({
