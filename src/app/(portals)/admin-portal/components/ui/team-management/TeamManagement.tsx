@@ -32,7 +32,21 @@ export default function TeamManagement() {
       }
 
       const newTeam = await response.json();
-      setTeams(prev => [...prev, newTeam]);
+      // Transform the API response to match our Team interface
+      const transformedTeam: Team = {
+        id: newTeam.id,
+        name: newTeam.name,
+        description: newTeam.description || '',
+        focusArea: newTeam.focus_area,
+        teamLead: {
+          id: newTeam.team_lead.id,
+          name: newTeam.team_lead.name,
+          email: newTeam.team_lead.email,
+        },
+        memberCount: newTeam.team_members?.length || 1, // At least 1 for the team lead
+      };
+      
+      setTeams(prev => [...prev, transformedTeam]);
       setIsNewTeamModalOpen(false);
       toast.success('Team created successfully');
     } catch (error) {
@@ -67,7 +81,7 @@ export default function TeamManagement() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-white">{team.name}</h3>
-                <p className="text-white/60 mt-1">{team.description}</p>
+                <p className="text-white/60 mt-1">{team.description || 'No description'}</p>
               </div>
             </div>
 
@@ -79,12 +93,14 @@ export default function TeamManagement() {
 
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Team Lead</span>
-                <span className="text-white">{team.teamLead.name}</span>
+                <span className="text-white">
+                  {team.teamLead?.name || 'Not assigned'}
+                </span>
               </div>
 
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Team Size</span>
-                <span className="text-white">{team.memberCount} members</span>
+                <span className="text-white">{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span>
               </div>
             </div>
 

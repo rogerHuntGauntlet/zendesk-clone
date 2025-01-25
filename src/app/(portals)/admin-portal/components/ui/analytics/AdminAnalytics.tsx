@@ -77,9 +77,31 @@ export default function AdminAnalytics() {
       // Fetch all projects
       const { data: projects, error: projectsError } = await supabase
         .from('zen_projects')
-        .select('*, zen_project_members(*)');
+        .select('*');
 
       if (projectsError) throw projectsError;
+
+      // Fetch project members for all projects
+      const { data: projectMembers, error: membersError } = await supabase
+        .from('zen_project_members')
+        .select('*')
+        .in('project_id', projects.map(p => p.id));
+
+      if (membersError) throw membersError;
+
+      // Group project members by project
+      const projectMembersMap = new Map<string, ProjectMember[]>();
+      projectMembers.forEach(member => {
+        const members = projectMembersMap.get(member.project_id) || [];
+        members.push({ user_id: member.user_id, role: member.role });
+        projectMembersMap.set(member.project_id, members);
+      });
+
+      // Add members to projects
+      const projectsWithMembers = projects.map(project => ({
+        ...project,
+        zen_project_members: projectMembersMap.get(project.id) || []
+      }));
 
       // Fetch all tickets
       const { data: tickets, error: ticketsError } = await supabase
@@ -90,9 +112,9 @@ export default function AdminAnalytics() {
 
       // Calculate project statuses
       const projectStatuses = {
-        active: projects.filter(p => p.status === 'active').length,
-        completed: projects.filter(p => p.status === 'completed').length,
-        on_hold: projects.filter(p => p.status === 'on-hold').length
+        active: projectsWithMembers.filter(p => p.status === 'active').length,
+        completed: projectsWithMembers.filter(p => p.status === 'completed').length,
+        on_hold: projectsWithMembers.filter(p => p.status === 'on-hold').length
       };
 
       // Calculate ticket trend (last 7 days)
@@ -110,13 +132,13 @@ export default function AdminAnalytics() {
       }));
 
       // Calculate project performance
-      const projectPerformance = projects.map(project => {
+      const projectPerformance = projectsWithMembers.map(project => {
         const projectTickets = tickets.filter(t => t.project_id === project.id);
         return {
           name: project.name,
           ticketsResolved: projectTickets.filter(t => t.status === 'resolved').length,
           activeTickets: projectTickets.filter(t => t.status !== 'resolved').length,
-          teamSize: project.zen_project_members.filter((m: ProjectMember) => m.role !== 'client').length
+          teamSize: (projectMembersMap.get(project.id) || []).filter(m => m.role !== 'client').length
         };
       });
 
@@ -136,14 +158,16 @@ export default function AdminAnalytics() {
       }, 0) / resolvedTickets.length || 0;
 
       setMetrics({
-        totalProjects: projects.length,
+        totalProjects: projectsWithMembers.length,
         totalTickets: tickets.length,
-        totalTeamMembers: new Set(projects.flatMap(p => 
-          p.zen_project_members.filter((m: ProjectMember) => m.role !== 'client').map((m: ProjectMember) => m.user_id)
-        )).size,
-        totalClients: new Set(projects.flatMap(p => 
-          p.zen_project_members.filter((m: ProjectMember) => m.role === 'client').map((m: ProjectMember) => m.user_id)
-        )).size,
+        totalTeamMembers: new Set(projectMembers
+          .filter(m => m.role !== 'client')
+          .map(m => m.user_id)
+        ).size,
+        totalClients: new Set(projectMembers
+          .filter(m => m.role === 'client')
+          .map(m => m.user_id)
+        ).size,
         avgResolutionTime,
         overallSatisfaction: 92, // Placeholder
         projectStatuses,

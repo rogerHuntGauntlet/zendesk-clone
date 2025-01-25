@@ -1,8 +1,17 @@
 "use client";
 
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useAuth } from '../../../hooks/useAuth';
+
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+}
 
 interface NewTeamModalProps {
   isOpen: boolean;
@@ -22,6 +31,85 @@ export default function NewTeamModal({ isOpen, onClose, onSubmit }: NewTeamModal
     focusArea: '',
     teamLeadId: ''
   });
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { getCurrentUser } = useAuth();
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchEmployees();
+    }
+  }, [isOpen]);
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const user = await getCurrentUser();
+      
+      if (!user) {
+        console.error('No user found');
+        return;
+      }
+
+      // Get all projects owned by the current admin
+      const { data: projects, error: projectsError } = await supabase
+        .from('zen_projects')
+        .select('id')
+        .eq('admin_id', user.id); // admin_id is the owner of the project
+
+      if (projectsError) {
+        console.error('Error fetching projects:', projectsError);
+        return;
+      }
+
+      if (!projects || projects.length === 0) {
+        return;
+      }
+
+      const projectIds = projects.map(p => p.id);
+
+      // Get all pending invites for these projects
+      const { data: pendingInvites, error: invitesError } = await supabase
+        .from('zen_pending_invites')
+        .select(`
+          email,
+          role,
+          user:zen_users!inner(
+            id,
+            name,
+            email
+          )
+        `)
+        .in('project_id', projectIds)
+        .eq('status', 'pending')
+        .eq('role', 'employee');
+
+      if (invitesError) {
+        console.error('Error fetching pending invites:', invitesError);
+        return;
+      }
+
+      // Transform the pending invites into employee objects
+      const uniqueInvites = new Map<string, Employee>();
+      pendingInvites?.forEach(invite => {
+        if (!uniqueInvites.has(invite.email) && invite.user) {
+          uniqueInvites.set(invite.email, {
+            id: invite.user.id,
+            name: invite.user.name || invite.email.split('@')[0],
+            email: invite.email,
+            department: 'Pending'
+          });
+        }
+      });
+
+      setEmployees(Array.from(uniqueInvites.values()));
+    } catch (error) {
+      console.error('Error in fetchEmployees:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,10 +217,14 @@ export default function NewTeamModal({ isOpen, onClose, onSubmit }: NewTeamModal
                         className="mt-1 block w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-white focus:border-violet-500 focus:ring-violet-500 sm:text-sm"
                         required
                       >
-                        <option value="">Select a team lead</option>
-                        {/* We'll populate this with actual team leads */}
-                        <option value="1">John Smith</option>
-                        <option value="2">Jane Doe</option>
+                        <option value="" className="text-gray-900">Select a team lead</option>
+                        {loading ? (
+                          <option value="" disabled>Loading employees...</option>
+                        ) : employees.map(employee => (
+                          <option key={employee.id} value={employee.id} className="text-gray-900">
+                            {employee.name} ({employee.department})
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -160,4 +252,4 @@ export default function NewTeamModal({ isOpen, onClose, onSubmit }: NewTeamModal
       </Dialog>
     </Transition.Root>
   );
-} 
+}
