@@ -2,18 +2,18 @@ import { createClient } from '@supabase/supabase-js'
 
 const getSupabaseUrl = () => {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
+  if (!url && typeof window !== 'undefined') {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
   }
-  return url;
+  return url || 'https://placeholder-url.supabase.co';
 };
 
 const getSupabaseKey = () => {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!key) {
+  if (!key && typeof window !== 'undefined') {
     throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
   }
-  return key;
+  return key || 'placeholder-key';
 };
 
 export const supabase = createClient(getSupabaseUrl(), getSupabaseKey(), {
