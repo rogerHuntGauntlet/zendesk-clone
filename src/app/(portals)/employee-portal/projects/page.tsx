@@ -29,13 +29,13 @@ export default function EmployeeProjects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"name" | "created_at" | "active_tickets">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     fetchProjects();
   }, []);
 
   const fetchProjects = async () => {
+    const supabase = createClientComponentClient();
     try {
       const user = await getCurrentUser();
       console.log('Current user:', user);
@@ -52,127 +52,102 @@ export default function EmployeeProjects() {
       ] = await Promise.all([
         supabase
           .from('zen_project_members')
-          .select('project_id')
-          .eq('user_id', user.id)
-          .eq('role', 'employee'),
+          .select(`
+            project_id,
+            role,
+            zen_projects (
+              id,
+              name,
+              description,
+              created_at,
+              status,
+              active_tickets,
+              admin:zen_users!admin_id (
+                name:full_name,
+                email
+              )
+            )
+          `)
+          .eq('user_id', user.id),
         supabase
-          .from('zen_pending_invites')
-          .select('*')
-          .eq('email', user.email || '')
+          .from('zen_project_invites')
+          .select(`
+            project_id,
+            zen_projects (
+              id,
+              name,
+              description,
+              created_at,
+              status,
+              active_tickets,
+              admin:zen_users!admin_id (
+                name:full_name,
+                email
+              )
+            )
+          `)
+          .eq('email', user.email)
           .eq('status', 'pending')
-          .neq('role', 'client')
       ]);
-
-      console.log('Member query:', {
-        userId: user.id,
-        email: user.email,
-        memberError,
-        inviteError
-      });
 
       if (memberError) throw memberError;
       if (inviteError) throw inviteError;
 
-      console.log('Project members:', projectMembers);
-      console.log('Pending invites:', pendingInvites);
+      // Combine and format projects from both sources
+      const activeProjects = (projectMembers || [])
+        .map(member => member.zen_projects)
+        .filter(project => project !== null);
 
-      // Combine project IDs from both memberships and invites
-      const memberProjectIds = (projectMembers || []).map(pm => pm.project_id);
-      const inviteProjectIds = (pendingInvites || []).map(invite => invite.project_id);
-      const allProjectIds = Array.from(new Set([...memberProjectIds, ...inviteProjectIds]));
+      const pendingProjects = (pendingInvites || [])
+        .map(invite => ({
+          ...invite.zen_projects,
+          isPending: true
+        }))
+        .filter(project => project !== null);
 
-      console.log('All project IDs:', allProjectIds);
-
-      if (!allProjectIds.length) {
-        console.log('No projects found for user');
-        setProjects([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Get project details
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('zen_projects')
-        .select(`
-          id,
-          name,
-          description,
-          created_at,
-          active_tickets,
-          admin:zen_users!zen_projects_admin_id_fkey (
-            name,
-            email
-          )
-        `)
-        .in('id', allProjectIds || []);
-
-      console.log('Projects data:', projectsData);
-      console.log('Projects error:', projectsError);
-
-      if (projectsError) throw projectsError;
-
-      // Transform the data to match the Project interface
-      const transformedProjects = (projectsData || []).map(project => {
-        // Handle the admin data which comes as an array from the join
-        const adminData = Array.isArray(project.admin) ? project.admin[0] : project.admin;
-        return {
-          ...project,
-          admin: {
-            name: adminData?.name || 'Unknown',
-            email: adminData?.email || 'unknown@email.com'
-          },
-          // Set status based on whether the project is in memberProjectIds
-          status: memberProjectIds.includes(project.id) ? 'active' : 'pending'
-        };
-      }) as Project[];
-
-      console.log('Transformed projects:', transformedProjects);
-      setProjects(transformedProjects);
-      setFilteredProjects(transformedProjects);
-    } catch (err) {
-      console.error('Error fetching projects:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load projects');
+      const allProjects = [...activeProjects, ...pendingProjects];
+      setProjects(allProjects);
+      setFilteredProjects(allProjects);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      setError('Failed to load projects');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Search and filter
+  // Filter and sort projects when search query or sort parameters change
   useEffect(() => {
     let filtered = [...projects];
 
     // Apply search filter
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(project =>
-        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchQuery.toLowerCase())
+        project.name.toLowerCase().includes(query) ||
+        project.description.toLowerCase().includes(query)
       );
     }
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-
-      if (sortField === "created_at") {
-        return sortOrder === "asc"
-          ? new Date(aValue).getTime() - new Date(bValue).getTime()
-          : new Date(bValue).getTime() - new Date(aValue).getTime();
+      let comparison = 0;
+      switch (sortField) {
+        case "name":
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case "created_at":
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case "active_tickets":
+          comparison = a.active_tickets - b.active_tickets;
+          break;
       }
-
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortOrder === "asc"
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
-
-      return sortOrder === "asc"
-        ? (aValue as number) - (bValue as number)
-        : (bValue as number) - (aValue as number);
+      return sortOrder === "asc" ? comparison : -comparison;
     });
 
     setFilteredProjects(filtered);
-  }, [projects, searchQuery, sortField, sortOrder]);
+  }, [searchQuery, sortField, sortOrder, projects]);
 
   const getProjectStatus = (activeTickets: number) => {
     if (activeTickets === 0) return "inactive";
@@ -226,21 +201,20 @@ export default function EmployeeProjects() {
             className="flex-1 px-4 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white/50 backdrop-blur-sm"
           />
           <select
-            value={`${sortField}-${sortOrder}`}
-            onChange={(e) => {
-              const [field, order] = e.target.value.split('-');
-              setSortField(field as typeof sortField);
-              setSortOrder(order as typeof sortOrder);
-            }}
+            value={sortField}
+            onChange={(e) => setSortField(e.target.value as "name" | "created_at" | "active_tickets")}
             className="px-4 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white/50 backdrop-blur-sm"
           >
-            <option value="created_at-desc">Newest First</option>
-            <option value="created_at-asc">Oldest First</option>
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="active_tickets-desc">Most Active Tickets</option>
-            <option value="active_tickets-asc">Least Active Tickets</option>
+            <option value="created_at">Sort by Date</option>
+            <option value="name">Sort by Name</option>
+            <option value="active_tickets">Sort by Active Tickets</option>
           </select>
+          <button
+            onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+            className="px-4 py-2 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white/50 backdrop-blur-sm"
+          >
+            {sortOrder === "asc" ? "↑" : "↓"}
+          </button>
         </div>
 
         {/* Projects Grid */}
@@ -261,7 +235,7 @@ export default function EmployeeProjects() {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900 mb-1">{project.name}</h3>
-                      {project.status === 'pending' && (
+                      {'isPending' in project && (
                         <span className="inline-block px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
                           Pending Invitation
                         </span>

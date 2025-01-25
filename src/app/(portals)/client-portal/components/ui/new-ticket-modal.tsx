@@ -308,7 +308,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
       formData.append('file', audioBlob, 'recording.webm');
       formData.append('model', 'whisper-1');
 
-      const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      const transcriptionResponse = await fetch('/api/ai/transcribe-audio', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_OPENAI_API_KEY}`,
@@ -340,7 +340,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
       }]);
 
       // Process with GPT
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('/api/ai/process-message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -540,7 +540,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
     setCurrentMessage("");
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('/api/ai/process-message', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -668,7 +668,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
         .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
         .join('\n\n');
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('/api/ai/process-ticket', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
