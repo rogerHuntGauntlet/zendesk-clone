@@ -1,10 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { createClient } from '@/lib/supabase/server';
 
 interface Project {
   id: string;
@@ -55,6 +50,7 @@ interface MemberData {
 
 export async function GET(request: Request) {
   try {
+    const supabase = createClient();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
