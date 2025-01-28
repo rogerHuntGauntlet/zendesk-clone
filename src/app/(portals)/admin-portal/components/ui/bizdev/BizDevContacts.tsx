@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSupabase } from '@/app/providers';
 import { toast } from 'sonner';
 import { AgentFactory } from '@/app/ai_agents/core/AgentFactory';
-import { FiUpload, FiUserPlus } from 'react-icons/fi';
+import { FiUpload, FiUserPlus, FiCheck } from 'react-icons/fi';
 
 interface Contact {
   name: string;
@@ -12,6 +12,12 @@ interface Contact {
   company: string;
   notes?: string;
   product: string;
+}
+
+interface ProcessingStep {
+  id: string;
+  message: string;
+  completed: boolean;
 }
 
 interface BizDevContactsProps {
@@ -26,6 +32,7 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
   const [newContact, setNewContact] = useState<Contact>({
     name: '',
     email: '',
@@ -42,15 +49,30 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
     getUser();
   }, [supabase]);
 
+  const updateProcessingStep = (stepId: string, message: string, completed: boolean = false) => {
+    setProcessingSteps(prev => {
+      const stepExists = prev.some(step => step.id === stepId);
+      if (stepExists) {
+        return prev.map(step => 
+          step.id === stepId ? { ...step, message, completed } : step
+        );
+      } else {
+        return [...prev, { id: stepId, message, completed }];
+      }
+    });
+  };
+
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
+    setProcessingSteps([]);
     const reader = new FileReader();
 
     reader.onload = async (e) => {
       try {
+        updateProcessingStep('csv', 'Reading CSV file...', false);
         const text = e.target?.result as string;
         const rows = text.split('\n');
         const contacts: Contact[] = [];
@@ -68,6 +90,7 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
             });
           }
         }
+        updateProcessingStep('csv', 'CSV file processed successfully', true);
 
         await processContacts(contacts);
         toast.success('Contacts uploaded successfully');
@@ -76,6 +99,7 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
         toast.error('Error uploading contacts');
       } finally {
         setIsUploading(false);
+        setProcessingSteps([]);
       }
     };
 
@@ -112,10 +136,10 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
     }
 
     try {
-      setProcessingStatus('Starting contact processing...');
+      updateProcessingStep('init', 'Starting contact processing...', true);
       const factory = AgentFactory.getInstance(supabase);
       
-      setProcessingStatus('Fetching BizDev agent...');
+      updateProcessingStep('agent', 'Fetching BizDev agent...', false);
       const { data: existingAgent, error: agentError } = await supabase
         .from('zen_agents')
         .select('*')
@@ -132,11 +156,12 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
         throw new Error('BizDev agent not found');
       }
 
-      console.log('Found BizDev agent:', existingAgent.id);
+      updateProcessingStep('agent', 'BizDev agent found', true);
 
       // Process each contact
       for (const contact of contacts) {
-        setProcessingStatus(`Processing contact: ${contact.name}...`);
+        const contactStepId = `contact-${contact.name}`;
+        updateProcessingStep(contactStepId, `Processing contact: ${contact.name}...`, false);
         
         // Create user and ticket
         const { data: user, error: userError } = await supabase
@@ -155,7 +180,7 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
           continue;
         }
 
-        setProcessingStatus(`Created user for ${contact.name}...`);
+        updateProcessingStep(`${contactStepId}-user`, `Created user for ${contact.name}`, true);
 
         const { data: ticket, error: ticketError } = await supabase
           .from('zen_tickets')
@@ -182,7 +207,8 @@ Notes: ${contact.notes || 'No notes'}`,
           continue;
         }
 
-        setProcessingStatus(`Starting AI research for ${contact.name}...`);
+        updateProcessingStep(`${contactStepId}-ticket`, `Created ticket for ${contact.name}`, true);
+        updateProcessingStep(`${contactStepId}-research`, `Starting AI research for ${contact.name}...`, false);
 
         try {
           const bizDevAgent = await factory.getExistingAgent(existingAgent.id);
@@ -198,10 +224,12 @@ Notes: ${contact.notes || 'No notes'}`,
               projectId
             }
           });
-          setProcessingStatus(`Completed processing ${contact.name}`);
+          updateProcessingStep(`${contactStepId}-research`, `Completed research for ${contact.name}`, true);
+          updateProcessingStep(contactStepId, `Completed processing ${contact.name}`, true);
         } catch (error) {
           console.error('AI research error:', error);
           toast.warning(`Contact added, but AI research failed for ${contact.name}. The research will be completed in the background.`);
+          updateProcessingStep(`${contactStepId}-research`, `Research queued for ${contact.name}`, true);
         }
       }
       
@@ -211,6 +239,8 @@ Notes: ${contact.notes || 'No notes'}`,
       console.error('Error in processContacts:', error);
       toast.error('Failed to process contacts');
       throw error;
+    } finally {
+      setProcessingSteps([]);
     }
   };
 
@@ -246,9 +276,21 @@ Notes: ${contact.notes || 'No notes'}`,
 
       {isProcessing && (
         <div className="mb-6 p-4 bg-violet-500/10 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-violet-500 border-t-transparent"></div>
-            <p className="text-white/80">{processingStatus}</p>
+          <div className="space-y-2">
+            {processingSteps.map((step) => (
+              <div key={step.id} className="flex items-center gap-3">
+                {step.completed ? (
+                  <div className="flex-shrink-0 h-5 w-5 text-green-500">
+                    <FiCheck className="h-full w-full" />
+                  </div>
+                ) : (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-violet-500 border-t-transparent" />
+                )}
+                <p className={`text-white/80 ${step.completed ? 'text-green-400' : ''}`}>
+                  {step.message}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
