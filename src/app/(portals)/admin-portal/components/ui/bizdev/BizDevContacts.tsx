@@ -136,10 +136,19 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
     }
 
     try {
-      updateProcessingStep('init', 'Starting contact processing...', true);
+      setProcessingSteps([
+        { id: 'init', message: 'Initializing AI Research', completed: false },
+        { id: 'extract', message: 'Extracting Information', completed: false },
+        { id: 'research', message: 'Conducting Research', completed: false },
+        { id: 'finalize', message: 'Finalizing Results', completed: false }
+      ]);
+
+      // Mark initialization as complete
+      updateProcessingStep('init', 'Initializing AI Research', true);
       const factory = AgentFactory.getInstance(supabase);
       
-      updateProcessingStep('agent', 'Fetching BizDev agent...', false);
+      // Start extraction phase
+      updateProcessingStep('extract', 'Extracting Information', false);
       const { data: existingAgent, error: agentError } = await supabase
         .from('zen_agents')
         .select('*')
@@ -156,13 +165,13 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
         throw new Error('BizDev agent not found');
       }
 
-      updateProcessingStep('agent', 'BizDev agent found', true);
+      updateProcessingStep('extract', 'Extracting Information', true);
+
+      // Start research phase
+      updateProcessingStep('research', 'Conducting Research', false);
 
       // Process each contact
       for (const contact of contacts) {
-        const contactStepId = `contact-${contact.name}`;
-        updateProcessingStep(contactStepId, `Processing contact: ${contact.name}...`, false);
-        
         // Create user and ticket
         const { data: user, error: userError } = await supabase
           .from('zen_users')
@@ -179,8 +188,6 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
           toast.error(`Failed to create user for ${contact.name}`);
           continue;
         }
-
-        updateProcessingStep(`${contactStepId}-user`, `Created user for ${contact.name}`, true);
 
         const { data: ticket, error: ticketError } = await supabase
           .from('zen_tickets')
@@ -207,9 +214,6 @@ Notes: ${contact.notes || 'No notes'}`,
           continue;
         }
 
-        updateProcessingStep(`${contactStepId}-ticket`, `Created ticket for ${contact.name}`, true);
-        updateProcessingStep(`${contactStepId}-research`, `Starting AI research for ${contact.name}...`, false);
-
         try {
           const bizDevAgent = await factory.getExistingAgent(existingAgent.id);
           await bizDevAgent.execute('research_prospects', {
@@ -224,14 +228,19 @@ Notes: ${contact.notes || 'No notes'}`,
               projectId
             }
           });
-          updateProcessingStep(`${contactStepId}-research`, `Completed research for ${contact.name}`, true);
-          updateProcessingStep(contactStepId, `Completed processing ${contact.name}`, true);
         } catch (error) {
           console.error('AI research error:', error);
           toast.warning(`Contact added, but AI research failed for ${contact.name}. The research will be completed in the background.`);
-          updateProcessingStep(`${contactStepId}-research`, `Research queued for ${contact.name}`, true);
         }
       }
+
+      // Mark research as complete
+      updateProcessingStep('research', 'Conducting Research', true);
+      
+      // Start finalization phase
+      updateProcessingStep('finalize', 'Finalizing Results', false);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay for visual feedback
+      updateProcessingStep('finalize', 'Finalizing Results', true);
       
       toast.success('Contacts processed successfully');
       onContactsProcessed?.();
@@ -239,8 +248,6 @@ Notes: ${contact.notes || 'No notes'}`,
       console.error('Error in processContacts:', error);
       toast.error('Failed to process contacts');
       throw error;
-    } finally {
-      setProcessingSteps([]);
     }
   };
 
@@ -276,15 +283,22 @@ Notes: ${contact.notes || 'No notes'}`,
 
       {isProcessing && (
         <div className="mb-6 p-4 bg-violet-500/10 rounded-lg">
-          <div className="space-y-2">
+          <h3 className="text-lg font-semibold text-white mb-4">AI Research in Progress</h3>
+          <div className="space-y-4">
             {processingSteps.map((step) => (
               <div key={step.id} className="flex items-center gap-3">
                 {step.completed ? (
-                  <div className="flex-shrink-0 h-5 w-5 text-green-500">
-                    <FiCheck className="h-full w-full" />
+                  <div className="flex-shrink-0 h-6 w-6 rounded-full bg-green-500/20 border-2 border-green-500 flex items-center justify-center">
+                    <FiCheck className="h-4 w-4 text-green-500" />
                   </div>
                 ) : (
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-violet-500 border-t-transparent" />
+                  <div className="flex-shrink-0 h-6 w-6 rounded-full border-2 border-violet-500 flex items-center justify-center">
+                    <div className="h-4 w-4">
+                      {step.id === processingSteps[processingSteps.length - 1]?.id && (
+                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-violet-500 border-t-transparent" />
+                      )}
+                    </div>
+                  </div>
                 )}
                 <p className={`text-white/80 ${step.completed ? 'text-green-400' : ''}`}>
                   {step.message}
@@ -292,6 +306,7 @@ Notes: ${contact.notes || 'No notes'}`,
               </div>
             ))}
           </div>
+          <p className="text-white/60 text-sm mt-4 text-center">This process may take a few minutes</p>
         </div>
       )}
 
