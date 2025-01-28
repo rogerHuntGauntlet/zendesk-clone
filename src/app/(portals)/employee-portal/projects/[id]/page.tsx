@@ -15,6 +15,7 @@ import { CustomerHistoryButton } from '../../components/ui/project-detail/Custom
 import { Badge } from '@/app/(portals)/admin-portal/components/ui/badge';
 import { useUser } from '@supabase/auth-helpers-react';
 import SharedNotes from '@/app/(portals)/admin-portal/components/ui/project-detail/SharedNotes';
+import { NewTicketModal } from '@/app/(portals)/client-portal/components/ui/new-ticket-modal';
 
 // Types
 interface Project {
@@ -220,8 +221,8 @@ interface SupabaseProjectClient {
   };
 }
 
-export default function ProjectDetailPage() {
-  const params = useParams();
+const ProjectDetailPage = () => {
+  const params = useParams() as { id: string };
   const router = useRouter();
   
   const [project, setProject] = useState<Project | null>(null);
@@ -264,6 +265,7 @@ export default function ProjectDetailPage() {
   const user = useUser();
   const [showTeamNotes, setShowTeamNotes] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('tickets');
+  const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
 
   const groupTickets = (tickets: Ticket[]): GroupedTickets => {
     const grouped: GroupedTickets = {
@@ -841,13 +843,6 @@ export default function ProjectDetailPage() {
                   <h2 className="text-2xl font-bold text-white">Tickets</h2>
                   <div className="flex items-center gap-4">
                     <button
-                      onClick={() => router.push(`/employee-portal/projects/${params.id}/tickets/new`)}
-                      className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
-                    >
-                      <FiPlusCircle className="w-5 h-5" />
-                      New Ticket
-                    </button>
-                    <button
                       onClick={() => setShowFilters(!showFilters)}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white"
                     >
@@ -1247,6 +1242,47 @@ export default function ProjectDetailPage() {
           ticket={selectedTicket}
         />
       )}
+
+      {/* Fixed New Ticket Button */}
+      <button
+        onClick={() => setIsNewTicketModalOpen(true)}
+        className="fixed bottom-8 left-8 bg-violet-600 hover:bg-violet-700 text-white px-6 py-3 rounded-full text-sm flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
+      >
+        <FiPlusCircle className="w-5 h-5" />
+        New Ticket
+      </button>
+
+      {/* New Ticket Modal */}
+      {project && (
+        <NewTicketModal
+          isOpen={isNewTicketModalOpen}
+          onClose={() => setIsNewTicketModalOpen(false)}
+          projectId={project.id}
+          projectName={project.name}
+          userRole="employee"
+          onSubmit={async (ticketData) => {
+            try {
+              const { data, error } = await supabase
+                .from('zen_tickets')
+                .insert([{
+                  ...ticketData,
+                  project_id: project.id,
+                  status: 'new'
+                }]);
+                
+              if (error) throw error;
+              
+              setIsNewTicketModalOpen(false);
+              fetchProjectData(); // Refresh the tickets list
+            } catch (err) {
+              console.error('Error creating ticket:', err);
+              throw err;
+            }
+          }}
+        />
+      )}
     </div>
   );
-} 
+}
+
+export default ProjectDetailPage; 

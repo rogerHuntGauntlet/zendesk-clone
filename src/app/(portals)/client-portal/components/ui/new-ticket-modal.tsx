@@ -19,6 +19,8 @@ interface NewTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
+  projectName: string;
+  userRole: string;
   onSubmit: (ticketData: TicketData) => Promise<void>;
 }
 
@@ -40,7 +42,7 @@ interface ChatMessage {
   isTyping?: boolean;
 }
 
-export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTicketModalProps) {
+export function NewTicketModal({ isOpen, onClose, projectId, projectName, userRole, onSubmit }: NewTicketModalProps) {
   const [isManualMode, setIsManualMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -54,7 +56,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm here to help you create a ticket. You can describe your issue, share screenshots, or record a voice message. I'll help structure your ticket appropriately."
+      content: `Hi! I'm here to help you create a ticket for **${projectName}**. You're creating this ticket as a **${userRole}**.\n\nYou can describe your issue, share screenshots, or record a voice message. I'll help structure your ticket appropriately.`
     }
   ]);
   const [currentMessage, setCurrentMessage] = useState("");
@@ -77,7 +79,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
       cleanupRecording();
       setChatMessages([{
         role: 'assistant',
-        content: "Hi! I'm here to help you create a ticket. You can describe your issue, share screenshots, or record a voice message. I'll help structure your ticket appropriately."
+        content: `Hi! I'm here to help you create a ticket for **${projectName}**. You're creating this ticket as a **${userRole}**.\n\nYou can describe your issue, share screenshots, or record a voice message. I'll help structure your ticket appropriately.`
       }]);
       setUploadedImages([]);
       if (wavesurferRef.current) {
@@ -748,7 +750,9 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
       <DialogContent className="sm:max-w-[700px] h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create New Ticket</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="flex flex-col gap-1">
+            <span className="text-violet-400">Project: {projectName}</span>
+            <span className="text-sm text-gray-500">Creating as: {userRole}</span>
             {showForm 
               ? "Review and edit the ticket details below before creating."
               : "Describe your issue and I'll help structure it into a ticket."}

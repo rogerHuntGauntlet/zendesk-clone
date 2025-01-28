@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/BaseAgent';
-import { Database } from '../types/database';
+import type { Database } from '@/app/types/database';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { NLPService } from '../services/NLPService';
 import { ResearchService } from '../services/ResearchService';
@@ -104,28 +104,76 @@ export class SupportAgent extends BaseAgent {
       params.userQuery
     );
 
-    // Store the response
-    const { data: messageData, error } = await this.client
+    // Start a new session by creating a session activity
+    const { data: session, error: sessionError } = await this.client
+      .from('zen_ticket_activities')
+      .insert({
+        ticket_id: params.ticketId,
+        activity_type: 'ai_session',
+        content: 'AI Support Session',
+        created_by: this.agentId,
+        metadata: {
+          session_type: 'support',
+          context: conversationContext
+        }
+      })
+      .select()
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    // Store the response message
+    const { data: messageData, error: messageError } = await this.client
       .from('zen_ticket_messages')
       .insert({
         ticket_id: params.ticketId,
         content: response,
         created_by: this.agentId,
-        type: 'ai_response'
+        source: 'ai',
+        metadata: {
+          session_id: session.id,
+          relevant_articles: relevantArticles
+        }
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (messageError) throw messageError;
+
+    // Generate and store session summary
+    const summary = await this.nlpService.generateResponse(
+      `Summarize this support session:\n\nUser Query: ${params.userQuery}\nContext: ${conversationContext}\nAI Response: ${response}`,
+      'Generate a concise summary of this support interaction'
+    );
+
+    const { error: summaryError } = await this.client
+      .from('zen_ticket_summaries')
+      .insert({
+        ticket_id: params.ticketId,
+        summary,
+        created_by: this.agentId,
+        created_by_role: 'admin',
+        ai_session_data: {
+          session_type: 'support',
+          user_query: params.userQuery,
+          context: conversationContext,
+          generated_response: response,
+          relevant_articles: relevantArticles
+        }
+      });
+
+    if (summaryError) throw summaryError;
 
     await this.logAction('GENERATE_RESPONSE', {
       ticketId: params.ticketId,
-      messageId: messageData.id
+      messageId: messageData.id,
+      sessionId: session.id
     });
 
     return {
       response,
-      messageId: messageData.id
+      messageId: messageData.id,
+      sessionId: session.id
     };
   }
 
@@ -150,7 +198,7 @@ export class SupportAgent extends BaseAgent {
         ticket_id: params.ticketId,
         content: `Ticket escalated: ${params.reason}`,
         created_by: this.agentId,
-        type: 'escalation_note'
+        source: 'ai'
       });
 
     await this.logAction('ESCALATE_TICKET', {

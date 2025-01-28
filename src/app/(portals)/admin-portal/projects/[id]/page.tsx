@@ -19,6 +19,9 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '../../hooks/useAuth';
 import BizDevContacts from '../../components/ui/bizdev/BizDevContacts';
 import { AgentFactory } from '@/app/ai_agents/core/AgentFactory';
+import TicketList from '../../components/ui/TicketList';
+import { NewTicketModal } from '../../../client-portal/components/ui/new-ticket-modal';
+import TeamActivityFeed from '../../components/ui/project-detail/TeamActivityFeed';
 
 // Types
 interface Project {
@@ -130,7 +133,7 @@ export default function ProjectDetailPage() {
   const supabase = createClientComponentClient();
   const auth = useAuth();
   const [user, setUser] = useState<any>(null);
-  
+
   const [project, setProject] = useState<Project | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -162,15 +165,33 @@ export default function ProjectDetailPage() {
     error?: string;
     ticket?: Ticket;
   }>({ step: '' });
+  const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
+
+  // Add null check for params
+  if (!params || !params.id) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Invalid project ID</h1>
+          <button
+            onClick={() => router.push('/admin-portal/projects')}
+            className="text-violet-400 hover:text-violet-300"
+          >
+            ← Back to projects
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(ticketSearch.toLowerCase()) ||
-                         ticket.description.toLowerCase().includes(ticketSearch.toLowerCase());
-    
+      ticket.description.toLowerCase().includes(ticketSearch.toLowerCase());
+
     if (showProspectsOnly) {
       return ticket.title.startsWith('Prospect:') && matchesSearch;
     }
-    
+
     return matchesSearch;
   });
 
@@ -280,10 +301,12 @@ export default function ProjectDetailPage() {
       setIsAIUpdateModalOpen(true);
       setAIUpdateStatus({ step: 'Starting AI update...', ticket });
 
-      // Get base URL from environment or use relative path
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-      
-      // Call the test endpoint
+      // Get base URL from environment or use window.location.origin
+      const baseUrl = typeof window !== 'undefined'
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_APP_URL || '';
+
+      // Call the endpoint
       const response = await fetch(`${baseUrl}/admin-portal/api/tickets/ai-update`, {
         method: 'POST',
         headers: {
@@ -302,7 +325,7 @@ export default function ProjectDetailPage() {
 
       // Show success message
       toast.success('AI update completed successfully!');
-      
+
       // Open timeline to show results
       setSelectedTicket(ticket);
       setIsTimelineModalOpen(true);
@@ -310,7 +333,7 @@ export default function ProjectDetailPage() {
 
     } catch (error) {
       console.error('Error running AI update:', error);
-      setAIUpdateStatus({ 
+      setAIUpdateStatus({
         step: 'Error',
         error: error instanceof Error ? error.message : 'Unknown error',
         ticket
@@ -383,7 +406,7 @@ export default function ProjectDetailPage() {
         .eq('role', 'client');
 
       if (clientsError) throw clientsError;
-      
+
       // Transform the data to match our interface
       const transformedClients = clientsData.map(client => ({
         ...client,
@@ -497,7 +520,7 @@ export default function ProjectDetailPage() {
       setIsAddMemberModalOpen(false);
       // Refresh data after successful invite
       await fetchProjectData();
-      
+
     } catch (error) {
       console.error('Error adding member:', error);
       toast.error('Failed to add member');
@@ -525,33 +548,33 @@ export default function ProjectDetailPage() {
     try {
       console.log('Starting client invitation process for:', email);
       console.log('Checking if user exists...');
-      
+
       // First check if user exists
       const { data: userData, error: userError } = await supabase
         .from('zen_users')
         .select('id, email')
         .eq('email', email);
-      
-      console.log('User lookup response:', { 
+
+      console.log('User lookup response:', {
         userData,
         userError,
-        exists: userData && userData.length > 0 
+        exists: userData && userData.length > 0
       });
 
       if (!userData || userData.length === 0) {
         console.log('User not found, checking for pending invites...');
-        
+
         // Check if invite is pending
         const { data: existingInvite, error: inviteCheckError } = await supabase
           .from('zen_pending_invites')
           .select('*')
           .eq('email', email)
           .eq('project_id', params.id);
-          
-        console.log('Pending invite check:', { 
+
+        console.log('Pending invite check:', {
           existingInvite,
           inviteCheckError,
-          hasPendingInvite: existingInvite && existingInvite.length > 0 
+          hasPendingInvite: existingInvite && existingInvite.length > 0
         });
 
         if (existingInvite && existingInvite.length > 0) {
@@ -575,7 +598,7 @@ export default function ProjectDetailPage() {
           console.error('Failed to create invite:', inviteError);
           throw inviteError;
         }
-        
+
         console.log('Invite created successfully');
         toast.success(`Invitation sent to ${email}`);
       } else {
@@ -586,11 +609,11 @@ export default function ProjectDetailPage() {
           .select('*')
           .eq('user_id', userData[0].id)
           .eq('project_id', params.id);
-          
-        console.log('Member check:', { 
+
+        console.log('Member check:', {
           existingMember,
           memberCheckError,
-          isMember: existingMember && existingMember.length > 0 
+          isMember: existingMember && existingMember.length > 0
         });
 
         if (existingMember && existingMember.length > 0) {
@@ -694,6 +717,25 @@ export default function ProjectDetailPage() {
     handleUpdateTicketStatus(ticketId, newStatus);
   };
 
+  const handleCreateTicket = async (ticketData: any) => {
+    try {
+      const { error } = await supabase
+        .from('zen_tickets')
+        .insert([{
+          ...ticketData,
+          project_id: params.id
+        }]);
+
+      if (error) throw error;
+
+      toast.success('Ticket created successfully');
+      fetchProjectData();
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      toast.error('Failed to create ticket');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
@@ -757,61 +799,55 @@ export default function ProjectDetailPage() {
         <div className="flex space-x-4 mb-6">
           <button
             onClick={() => setActiveTab('tickets')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'tickets'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'tickets'
                 ? 'bg-violet-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
-            }`}
+              }`}
           >
             Tickets
           </button>
           <button
             onClick={() => setActiveTab('management')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'management'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'management'
                 ? 'bg-violet-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
-            }`}
+              }`}
           >
             Project Management
           </button>
           <button
             onClick={() => setActiveTab('bizdev')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'bizdev'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'bizdev'
                 ? 'bg-violet-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
-            }`}
+              }`}
           >
             BizDev Contacts
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'analytics'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'analytics'
                 ? 'bg-violet-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
-            }`}
+              }`}
           >
             Analytics
           </button>
           <button
             onClick={() => setActiveTab('notes')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'notes'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'notes'
                 ? 'bg-violet-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
-            }`}
+              }`}
           >
             Shared Notes
           </button>
           <button
             onClick={() => setActiveTab('schedule')}
-            className={`px-4 py-2 rounded-lg ${
-              activeTab === 'schedule'
+            className={`px-4 py-2 rounded-lg ${activeTab === 'schedule'
                 ? 'bg-violet-500 text-white'
                 : 'bg-white/5 text-white/60 hover:bg-white/10'
-            }`}
+              }`}
           >
             Schedule
           </button>
@@ -913,129 +949,55 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
             </div>
+            {/* Team Activity Feed */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+              <TeamActivityFeed projectId={params.id as string} />
+            </div>
           </div>
         )}
 
         {activeTab === 'bizdev' && (
           <div className="space-y-6">
             <BizDevContacts projectId={params.id as string} />
+            <TicketList
+              tickets={tickets}
+              projectId={params.id as string}
+              onStatusChange={handleUpdateTicketStatus}
+              onAssignTicket={(ticketId) => {
+                const ticket = tickets.find(t => t.id === ticketId);
+                if (ticket) {
+                  setSelectedTicket(ticket);
+                  setIsAssignTicketModalOpen(true);
+                }
+              }}
+              onViewTimeline={(ticket) => {
+                setSelectedTicket(ticket);
+                setIsTimelineModalOpen(true);
+              }}
+              onRunAIUpdate={handleRunAIUpdate}
+            />
           </div>
         )}
 
         {activeTab === 'tickets' && (
           <div className="space-y-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-white">Tickets</h2>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => router.push(`/admin-portal/projects/${params.id}/tickets/new`)}
-                    className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
-                  >
-                    <FiPlusCircle className="w-5 h-5" />
-                    New Ticket
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Search tickets..."
-                      value={ticketSearch}
-                      onChange={(e) => setTicketSearch(e.target.value)}
-                      className="px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-500"
-                    />
-                    <label className="flex items-center gap-2 text-white/60">
-                      <input
-                        type="checkbox"
-                        checked={showProspectsOnly}
-                        onChange={(e) => setShowProspectsOnly(e.target.checked)}
-                        className="rounded bg-white/5 border-white/20 text-violet-500 focus:ring-violet-500"
-                      />
-                      Prospects Only
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
-                    <button
-                      onClick={() => setTicketView('list')}
-                      className={`p-2 rounded ${ticketView === 'list' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
-                      title="List View"
-                    >
-                      <ViewListIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setTicketView('grid')}
-                      className={`p-2 rounded ${ticketView === 'grid' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
-                      title="Grid View"
-                    >
-                      <ViewGridIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => setTicketView('kanban')}
-                      className={`p-2 rounded ${ticketView === 'kanban' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
-                      title="Kanban View"
-                    >
-                      <ViewBoardsIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ticket Views */}
-              {ticketView === 'kanban' ? (
-                <DragDropContext
-                  onDragStart={() => setIsDragging(true)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {TICKET_STATUSES.map((status) => (
-                      <StrictModeDroppable key={status} droppableId={status}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className={cn(
-                              'p-4 rounded-lg min-h-[200px]',
-                              getStatusColor(status as TicketStatus)
-                            )}
-                          >
-                            <h3 className="text-white font-medium mb-4 flex items-center gap-2">
-                              {getStatusIcon(status as TicketStatus)}
-                              {getStatusDisplay(status as TicketStatus)}
-                              <span className="ml-auto text-sm text-white/60">
-                                {groupedTickets[status]?.length || 0}
-                              </span>
-                            </h3>
-                            <div className="space-y-3">
-                              {groupedTickets[status]?.map((ticket, index) => (
-                                <Draggable
-                                  key={ticket.id}
-                                  draggableId={ticket.id}
-                                  index={index}
-                                >
-                                  {(provided) => (
-                                    <div
-                                      ref={provided.innerRef}
-                                      {...provided.draggableProps}
-                                      {...provided.dragHandleProps}
-                                    >
-                                      {renderTicketCard(ticket)}
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-                              {provided.placeholder}
-                            </div>
-                          </div>
-                        )}
-                      </StrictModeDroppable>
-                    ))}
-                  </div>
-                </DragDropContext>
-              ) : (
-                <div className={ticketView === 'grid' ? 'grid grid-cols-2 gap-4' : 'space-y-4'}>
-                  {filteredTickets.map((ticket) => renderTicketCard(ticket))}
-                </div>
-              )}
-            </div>
+            <TicketList
+              tickets={tickets}
+              projectId={params.id as string}
+              onStatusChange={handleUpdateTicketStatus}
+              onAssignTicket={(ticketId) => {
+                const ticket = tickets.find(t => t.id === ticketId);
+                if (ticket) {
+                  setSelectedTicket(ticket);
+                  setIsAssignTicketModalOpen(true);
+                }
+              }}
+              onViewTimeline={(ticket) => {
+                setSelectedTicket(ticket);
+                setIsTimelineModalOpen(true);
+              }}
+              onRunAIUpdate={handleRunAIUpdate}
+            />
           </div>
         )}
 
@@ -1059,14 +1021,25 @@ export default function ProjectDetailPage() {
         )}
 
         {activeTab === 'schedule' && (
-          <ScheduleManagement 
+          <ScheduleManagement
             projectId={project.id}
             members={members}
           />
         )}
       </div>
 
-      {/* Modals */}
+      {/* Fixed Position New Ticket Button */ }
+      <button
+        onClick={() => setIsNewTicketModalOpen(true)}
+        className="fixed bottom-8 right-8 bg-violet-600 hover:bg-violet-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group"
+      >
+        <FiPlusCircle className="w-6 h-6" />
+        <span className="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs group-hover:ml-2 transition-all duration-200 ease-in-out">
+          New Ticket
+        </span>
+      </button>
+
+      {/* Modals */ }
       <AddMemberModal
         isOpen={isAddMemberModalOpen}
         onClose={() => setIsAddMemberModalOpen(false)}
@@ -1079,7 +1052,16 @@ export default function ProjectDetailPage() {
         onSubmit={handleInviteClient}
       />
 
-      {/* AI Update Progress Modal */}
+      <NewTicketModal
+        isOpen={isNewTicketModalOpen}
+        onClose={() => setIsNewTicketModalOpen(false)}
+        projectId={params.id as string}
+        projectName={project.name}
+        userRole={user?.user_metadata?.role || 'employee'}
+        onSubmit={handleCreateTicket}
+      />
+
+      {/* AI Update Progress Modal */ }
       <div className={`fixed inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isAIUpdateModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-white/10">
           <div className="flex flex-col items-center text-center">
@@ -1089,40 +1071,36 @@ export default function ProjectDetailPage() {
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-500 border-t-transparent"></div>
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-4">AI Research in Progress</h3>
-                
+
                 {/* Progress Steps */}
                 <div className="w-full space-y-3 mb-4">
                   <div className={`flex items-center ${aiUpdateStatus.step.includes('Starting') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
-                      aiUpdateStatus.step.includes('Starting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                    }`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('Starting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                      }`}>
                       {aiUpdateStatus.step.includes('Starting') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
                     </div>
                     <span>Initializing AI Research</span>
                   </div>
 
                   <div className={`flex items-center ${aiUpdateStatus.step.includes('Extracting') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
-                      aiUpdateStatus.step.includes('Extracting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                    }`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('Extracting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                      }`}>
                       {aiUpdateStatus.step.includes('Extracting') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
                     </div>
                     <span>Extracting Information</span>
                   </div>
 
                   <div className={`flex items-center ${aiUpdateStatus.step.includes('Running') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
-                      aiUpdateStatus.step.includes('Running') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                    }`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('Running') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                      }`}>
                       {aiUpdateStatus.step.includes('Running') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
                     </div>
                     <span>Conducting Research</span>
                   </div>
 
                   <div className={`flex items-center ${aiUpdateStatus.step.includes('completed') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
-                      aiUpdateStatus.step.includes('completed') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                    }`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('completed') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                      }`}>
                       {aiUpdateStatus.step.includes('completed') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
                     </div>
                     <span>Finalizing Results</span>
@@ -1161,26 +1139,28 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      {selectedTicket && (
-        <>
-          <AssignTicketModal
-            isOpen={isAssignTicketModalOpen}
-            onClose={() => setIsAssignTicketModalOpen(false)}
-            ticket={selectedTicket}
-            members={members}
-            onSubmit={handleAssignTicket}
-          />
-          
-          <TicketTimeline
-            isOpen={isTimelineModalOpen}
-            onClose={() => {
-              setIsTimelineModalOpen(false);
-              setSelectedTicket(null);
-            }}
-            ticket={selectedTicket}
-          />
-        </>
-      )}
+      {
+        selectedTicket && (
+          <>
+            <AssignTicketModal
+              isOpen={isAssignTicketModalOpen}
+              onClose={() => setIsAssignTicketModalOpen(false)}
+              ticket={selectedTicket}
+              members={members}
+              onSubmit={handleAssignTicket}
+            />
+
+            <TicketTimeline
+              isOpen={isTimelineModalOpen}
+              onClose={() => {
+                setIsTimelineModalOpen(false);
+                setSelectedTicket(null);
+              }}
+              ticket={selectedTicket}
+            />
+          </>
+        )
+      }
     </div>
   );
 } 

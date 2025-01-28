@@ -29,6 +29,7 @@ export default function EmployeeProjects() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"name" | "created_at" | "active_tickets">("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [isAccepting, setIsAccepting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -180,6 +181,47 @@ export default function EmployeeProjects() {
     return "active";
   };
 
+  const acceptInvitation = async (projectId: string, e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation
+    setIsAccepting(projectId);
+    const supabase = createClient();
+    
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Accept the invitation
+      const { error: inviteError } = await supabase
+        .from('zen_pending_invites')
+        .update({ status: 'accepted' })
+        .eq('project_id', projectId)
+        .eq('email', user.email);
+
+      if (inviteError) throw inviteError;
+
+      // Create project membership
+      const { error: memberError } = await supabase
+        .from('zen_project_members')
+        .insert({
+          project_id: projectId,
+          user_id: user.id,
+          role: 'employee'
+        });
+
+      if (memberError) throw memberError;
+
+      // Refresh projects
+      await fetchProjects();
+    } catch (err) {
+      console.error('Error accepting invitation:', err);
+      setError(err instanceof Error ? err.message : 'Failed to accept invitation');
+    } finally {
+      setIsAccepting(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-amber-50 p-4">
@@ -254,7 +296,7 @@ export default function EmployeeProjects() {
             {filteredProjects.map((project) => (
               <Link
                 key={project.id}
-                href={`/employee-portal/projects/${project.id}`}
+                href={project.status === 'pending' ? '#' : `/employee-portal/projects/${project.id}`}
                 className="block bg-white/50 backdrop-blur-sm rounded-lg shadow-sm hover:shadow-md transition-all border border-orange-200 hover:border-orange-300"
               >
                 <div className="p-6">
@@ -262,9 +304,13 @@ export default function EmployeeProjects() {
                     <div>
                       <h3 className="text-xl font-semibold text-gray-900 mb-1">{project.name}</h3>
                       {project.status === 'pending' && (
-                        <span className="inline-block px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                          Pending Invitation
-                        </span>
+                        <button
+                          onClick={(e) => acceptInvitation(project.id, e)}
+                          disabled={isAccepting === project.id}
+                          className="px-3 py-1 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isAccepting === project.id ? 'Accepting...' : 'Accept Invitation'}
+                        </button>
                       )}
                     </div>
                     <span
