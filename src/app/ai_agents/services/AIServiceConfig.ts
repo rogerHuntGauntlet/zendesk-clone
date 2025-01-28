@@ -11,10 +11,23 @@ export class AIServiceConfig {
   private langSmithClient: Client;
 
   private constructor() {
-    // Initialize LangSmith client
+    // Initialize LangSmith client with API key
     this.langSmithClient = new Client({
-      apiKey: process.env.LANGSMITH_API_KEY,
+      apiKey: process.env.NEXT_PUBLIC_LANGCHAIN_API_KEY,
     });
+
+    // Set LangSmith environment variables
+    if (typeof window !== 'undefined') {
+      window.process = {
+        ...window.process,
+        env: {
+          ...window.process?.env,
+          NEXT_PUBLIC_LANGSMITH_ENDPOINT: process.env.NEXT_PUBLIC_LANGSMITH_ENDPOINT || "https://api.smith.langchain.com",
+          NEXT_PUBLIC_LANGSMITH_PROJECT: process.env.NEXT_PUBLIC_LANGSMITH_PROJECT || "pr-only-mountain-21",
+          NEXT_PUBLIC_LANGSMITH_TRACING: 'true'
+        }
+      };
+    }
 
     // Initialize OpenAI with tracing enabled
     this.openAIModel = new ChatOpenAI({
@@ -22,11 +35,6 @@ export class AIServiceConfig {
       temperature: 0.7,
       openAIApiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
     });
-
-    // Enable tracing for all chains
-    process.env.LANGSMITH_TRACING = 'true';
-    process.env.LANGSMITH_ENDPOINT = process.env.LANGSMITH_ENDPOINT || "https://api.smith.langchain.com";
-    process.env.LANGSMITH_PROJECT = process.env.LANGSMITH_PROJECT || "pr-only-mountain-21";
 
     // Initialize Pinecone
     this.pineconeClient = new Pinecone({
@@ -44,8 +52,14 @@ export class AIServiceConfig {
       if (!process.env.NEXT_PUBLIC_PINECONE_API_KEY) {
         throw new Error('Pinecone API key is not configured. Please add NEXT_PUBLIC_PINECONE_API_KEY to your environment variables.');
       }
-      if (!process.env.LANGSMITH_API_KEY) {
-        throw new Error('LangSmith API key is not configured. Please add LANGSMITH_API_KEY to your environment variables.');
+      if (!process.env.NEXT_PUBLIC_LANGCHAIN_API_KEY) {
+        throw new Error('LangSmith API key is not configured. Please add NEXT_PUBLIC_LANGCHAIN_API_KEY to your environment variables.');
+      }
+      if (!process.env.NEXT_PUBLIC_LANGSMITH_ENDPOINT) {
+        throw new Error('LangSmith endpoint is not configured. Please add NEXT_PUBLIC_LANGSMITH_ENDPOINT to your environment variables.');
+      }
+      if (!process.env.NEXT_PUBLIC_LANGSMITH_PROJECT) {
+        throw new Error('LangSmith project is not configured. Please add NEXT_PUBLIC_LANGSMITH_PROJECT to your environment variables.');
       }
       AIServiceConfig.instance = new AIServiceConfig();
     }

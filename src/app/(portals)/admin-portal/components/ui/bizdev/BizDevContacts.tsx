@@ -16,9 +16,10 @@ interface Contact {
 
 interface BizDevContactsProps {
   projectId: string;
+  onContactsProcessed?: () => void;
 }
 
-export default function BizDevContacts({ projectId }: BizDevContactsProps) {
+export default function BizDevContacts({ projectId, onContactsProcessed }: BizDevContactsProps) {
   const supabase = useSupabase();
   const [isUploading, setIsUploading] = useState(false);
   const [showContactForm, setShowContactForm] = useState(false);
@@ -205,6 +206,7 @@ Notes: ${contact.notes || 'No notes'}`,
       }
       
       toast.success('Contacts processed successfully');
+      onContactsProcessed?.();
     } catch (error) {
       console.error('Error in processContacts:', error);
       toast.error('Failed to process contacts');

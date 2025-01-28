@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
 import BizDevContacts from '../components/ui/bizdev/BizDevContacts';
@@ -11,11 +11,17 @@ import { Plus } from 'lucide-react';
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('projects');
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleTicketSubmit = async (ticketData: any) => {
     // TODO: Implement ticket creation logic
     setIsTicketModalOpen(false);
+    setRefreshTrigger(prev => prev + 1);
   };
+
+  const handleContactsProcessed = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -96,7 +102,7 @@ export default function AdminDashboard() {
 
           {activeTab === 'bizdev' && (
             <div className="space-y-6">
-              <BizDevContacts />
+              <BizDevContacts projectId="admin" onContactsProcessed={handleContactsProcessed} />
             </div>
           )}
         </div>
@@ -107,6 +113,7 @@ export default function AdminDashboard() {
         onClose={() => setIsTicketModalOpen(false)}
         projectId="admin"
         onSubmit={handleTicketSubmit}
+        key={refreshTrigger}
       />
     </div>
   );
