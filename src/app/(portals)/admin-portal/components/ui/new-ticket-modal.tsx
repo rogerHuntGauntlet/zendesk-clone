@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../../../components/ui/dialog';
+import { Button } from '../../../../../components/ui/button';
+import { Label } from '../../../../../components/ui/label';
+import { Input } from '../../../../../components/ui/input';
+import { Textarea } from '../../../../../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../../../components/ui/select';
+import { Alert, AlertDescription } from '../../../../../components/ui/alert';
 
 interface NewTicketModalProps {
   isOpen: boolean;
@@ -31,6 +31,16 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset form when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setTitle('');
+      setDescription('');
+      setPriority('medium');
+      setError(null);
+    }
+  }, [isOpen]);
+
   const handleSubmit = async () => {
     if (!title || !description) {
       setError('Please fill in all required fields.');
@@ -49,10 +59,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
         status: 'new'
       });
       
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setPriority('medium');
+      // Let the parent component handle closing
       onClose();
     } catch (error) {
       console.error('Error creating ticket:', error);
@@ -62,8 +69,14 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
     }
   };
 
+  const handleClose = () => {
+    if (!isSubmitting) {
+      onClose();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Create New Ticket</DialogTitle>
@@ -81,7 +94,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
             <Input
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
               placeholder="Enter ticket title"
             />
           </div>
@@ -91,7 +104,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
             <Textarea
               id="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
               placeholder="Enter detailed description"
               className="min-h-[150px]"
             />
@@ -114,7 +127,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, onSubmit }: NewTick
         </div>
 
         <div className="flex justify-end space-x-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button 

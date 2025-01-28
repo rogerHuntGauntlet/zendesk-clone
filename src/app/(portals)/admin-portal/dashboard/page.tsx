@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
 import BizDevContacts from '../components/ui/bizdev/BizDevContacts';
 import { NewTicketModal } from '../components/ui/new-ticket-modal';
-import { Button } from '@/components/ui/button';
+import { Button } from '../../../../components/ui/button';
 import { Plus } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -138,7 +138,6 @@ export default function AdminDashboard() {
         onClose={() => setIsTicketModalOpen(false)}
         projectId="admin"
         onSubmit={handleTicketSubmit}
-        key={refreshTrigger}
       />
     </div>
   );

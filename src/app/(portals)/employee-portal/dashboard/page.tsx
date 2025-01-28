@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { NewTicketModal } from '../../client-portal/components/ui/new-ticket-modal';
-import { Button } from '@/components/ui/button';
+import { Button } from '../../../../components/ui/button';
 import { Plus } from 'lucide-react';
 
 export default function EmployeeDashboard() {
