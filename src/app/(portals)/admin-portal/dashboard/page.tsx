@@ -2,9 +2,11 @@
 
 import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { toast } from 'sonner';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
 import BizDevContacts from '../components/ui/bizdev/BizDevContacts';
-import { NewTicketModal } from '../../client-portal/components/ui/new-ticket-modal';
+import { NewTicketModal } from '../components/ui/new-ticket-modal';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
@@ -12,11 +14,34 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('projects');
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const supabase = createClientComponentClient();
 
   const handleTicketSubmit = async (ticketData: any) => {
-    // TODO: Implement ticket creation logic
-    setIsTicketModalOpen(false);
-    setRefreshTrigger(prev => prev + 1);
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No user found');
+
+      const { error: ticketError } = await supabase
+        .from('zen_tickets')
+        .insert({
+          ...ticketData,
+          created_by: user.id,
+          updated_by: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+
+      if (ticketError) throw ticketError;
+
+      toast.success('Ticket created successfully');
+      setIsTicketModalOpen(false);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Error creating ticket:', error);
+      toast.error('Failed to create ticket');
+      throw error;
+    }
   };
 
   const handleContactsProcessed = useCallback(() => {

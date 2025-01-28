@@ -14,22 +14,26 @@ export class AIServiceConfig {
     // Set up LangSmith environment variables first
     if (typeof window === 'undefined') {
       // Server-side environment setup
+      process.env.LANGSMITH_TRACING = "true";
+      process.env.LANGSMITH_ENDPOINT = "https://api.smith.langchain.com";
+      process.env.LANGSMITH_PROJECT = "zendesk-clone-test";
+      
+      // Also set LangChain variables for compatibility
       process.env.LANGCHAIN_TRACING_V2 = "true";
-      process.env.LANGCHAIN_ENDPOINT = process.env.LANGSMITH_ENDPOINT || "https://api.smith.langchain.com";
-      process.env.LANGCHAIN_API_KEY = process.env.LANGSMITH_API_KEY;
+      process.env.LANGCHAIN_ENDPOINT = "https://api.smith.langchain.com";
       process.env.LANGCHAIN_PROJECT = "zendesk-clone-test";
     }
 
     // Initialize LangSmith client
     this.langSmithClient = new Client({
-      apiKey: process.env.LANGSMITH_API_KEY,
+      apiKey: process.env.LANGSMITH_API_KEY || process.env.LANGCHAIN_API_KEY,
     });
 
     // Initialize OpenAI with tracing enabled
     this.openAIModel = new ChatOpenAI({
       modelName: 'gpt-4-turbo-preview',
       temperature: 0.7,
-      openAIApiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+      openAIApiKey: process.env.OPENAI_API_KEY,
       configuration: {
         baseURL: "https://api.openai.com/v1",
       }

@@ -276,77 +276,38 @@ export default function ProjectDetailPage() {
   );
 
   const handleRunAIUpdate = async (ticket: Ticket) => {
-    if (!project) {
-      toast.error('Project not found');
-      return;
-    }
-
-    setAIUpdateStatus({ step: 'Initializing research process...', ticket });
-    setIsAIUpdateModalOpen(true);
-
     try {
-      // Step 1: Initialization
-      setAIUpdateStatus({ step: 'Initializing research process...', ticket });
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Give UI time to update
+      setIsAIUpdateModalOpen(true);
+      setAIUpdateStatus({ step: 'Starting AI update...', ticket });
 
-      // Step 2: Extract prospect info
-      setAIUpdateStatus({ step: 'Extracting prospect information...', ticket });
-      const description = ticket.description;
-      const lines = description.split('\n');
-      const prospectData: any = {};
+      // Get base URL from environment or use relative path
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
       
-      lines.forEach(line => {
-        if (line.startsWith('Company:')) {
-          prospectData.company = line.replace('Company:', '').trim();
-        } else if (line.startsWith('Email:')) {
-          prospectData.email = line.replace('Email:', '').trim();
-        } else if (line.startsWith('Product/Service:')) {
-          prospectData.product = line.replace('Product/Service:', '').trim();
-        } else if (line.startsWith('Notes:')) {
-          prospectData.notes = line.replace('Notes:', '').trim();
-        }
+      // Call the test endpoint
+      const response = await fetch(`${baseUrl}/admin-portal/api/tickets/ai-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ticketId: ticket.id })
       });
-      
-      prospectData.name = ticket.title.replace('Prospect:', '').trim();
-      prospectData.projectId = project.id;
 
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Give UI time to update
-
-      // Step 3: Initialize BizDev agent
-      setAIUpdateStatus({ step: 'Initializing BizDev agent...', ticket });
-      const factory = AgentFactory.getInstance(supabase);
-      const { data: existingAgent } = await supabase
-        .from('zen_agents')
-        .select('*')
-        .eq('email', 'bizdev_agent@system.internal')
-        .single();
-
-      if (!existingAgent) {
-        throw new Error('BizDev agent not found');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to run AI update');
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Give UI time to update
+      const result = await response.json();
+      console.log('AI Update Result:', result);
 
-      // Step 4: Run research
-      setAIUpdateStatus({ step: 'Running web research and analysis...', ticket });
-      const bizDevAgent = await factory.getExistingAgent(existingAgent.id);
-      await bizDevAgent.execute('research_prospects', {
-        projectId: project.id,
-        ticketId: ticket.id,
-        prospect_data: {
-          ...prospectData,
-          info: `Name: ${prospectData.name}\nCompany: ${prospectData.company}\nEmail: ${prospectData.email || 'N/A'}\nProduct/Service: ${prospectData.product}\nNotes: ${prospectData.notes || 'N/A'}`
-        }
-      });
-
-      // Step 5: Completion
-      setAIUpdateStatus({ step: 'Research completed successfully!', ticket });
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Show success message
+      // Show success message
+      toast.success('AI update completed successfully!');
       
-      // Close AI update modal and open timeline
-      setIsAIUpdateModalOpen(false);
+      // Open timeline to show results
       setSelectedTicket(ticket);
       setIsTimelineModalOpen(true);
+      setIsAIUpdateModalOpen(false);
+
     } catch (error) {
       console.error('Error running AI update:', error);
       setAIUpdateStatus({ 
@@ -354,6 +315,7 @@ export default function ProjectDetailPage() {
         error: error instanceof Error ? error.message : 'Unknown error',
         ticket
       });
+      toast.error('Failed to run AI update');
     }
   };
 
