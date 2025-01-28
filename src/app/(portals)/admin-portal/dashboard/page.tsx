@@ -6,7 +6,6 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'sonner';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
 import BizDevContacts from '../components/ui/bizdev/BizDevContacts';
-import { NewTicketModal } from '../components/ui/new-ticket-modal';
 import { Button } from '../../../../components/ui/button';
 import { Plus } from 'lucide-react';
 
@@ -133,12 +132,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <NewTicketModal
-        isOpen={isTicketModalOpen}
-        onClose={() => setIsTicketModalOpen(false)}
-        projectId="admin"
-        onSubmit={handleTicketSubmit}
-      />
+      
     </div>
   );
 } 

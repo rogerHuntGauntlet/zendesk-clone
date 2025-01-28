@@ -1074,34 +1074,66 @@ export default function ProjectDetailPage() {
 
                 {/* Progress Steps */}
                 <div className="w-full space-y-3 mb-4">
-                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Starting') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('Starting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                      }`}>
-                      {aiUpdateStatus.step.includes('Starting') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Starting') ? 'text-violet-400' : aiUpdateStatus.step.includes('Extracting') || aiUpdateStatus.step.includes('Running') || aiUpdateStatus.step.includes('completed') ? 'text-green-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('Starting') ? 'border-violet-400 bg-violet-400/20' : 
+                      aiUpdateStatus.step.includes('Extracting') || aiUpdateStatus.step.includes('Running') || aiUpdateStatus.step.includes('completed') ? 'border-green-400 bg-green-400/20' : 
+                      'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('Starting') ? (
+                        <div className="w-2 h-2 bg-violet-400 rounded-full"></div>
+                      ) : aiUpdateStatus.step.includes('Extracting') || aiUpdateStatus.step.includes('Running') || aiUpdateStatus.step.includes('completed') ? (
+                        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : null}
                     </div>
                     <span>Initializing AI Research</span>
                   </div>
 
-                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Extracting') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('Extracting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                      }`}>
-                      {aiUpdateStatus.step.includes('Extracting') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Extracting') ? 'text-violet-400' : aiUpdateStatus.step.includes('Running') || aiUpdateStatus.step.includes('completed') ? 'text-green-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('Extracting') ? 'border-violet-400 bg-violet-400/20' : 
+                      aiUpdateStatus.step.includes('Running') || aiUpdateStatus.step.includes('completed') ? 'border-green-400 bg-green-400/20' : 
+                      'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('Extracting') ? (
+                        <div className="w-2 h-2 bg-violet-400 rounded-full"></div>
+                      ) : aiUpdateStatus.step.includes('Running') || aiUpdateStatus.step.includes('completed') ? (
+                        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : null}
                     </div>
                     <span>Extracting Information</span>
                   </div>
 
-                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Running') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('Running') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                      }`}>
-                      {aiUpdateStatus.step.includes('Running') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Running') ? 'text-violet-400' : aiUpdateStatus.step.includes('completed') ? 'text-green-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('Running') ? 'border-violet-400 bg-violet-400/20' : 
+                      aiUpdateStatus.step.includes('completed') ? 'border-green-400 bg-green-400/20' : 
+                      'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('Running') ? (
+                        <div className="w-2 h-2 bg-violet-400 rounded-full"></div>
+                      ) : aiUpdateStatus.step.includes('completed') ? (
+                        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : null}
                     </div>
                     <span>Conducting Research</span>
                   </div>
 
-                  <div className={`flex items-center ${aiUpdateStatus.step.includes('completed') ? 'text-violet-400' : 'text-white/60'}`}>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${aiUpdateStatus.step.includes('completed') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
-                      }`}>
-                      {aiUpdateStatus.step.includes('completed') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('completed') ? 'text-green-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('completed') ? 'border-green-400 bg-green-400/20' : 'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('completed') && (
+                        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
                     </div>
                     <span>Finalizing Results</span>
                   </div>
