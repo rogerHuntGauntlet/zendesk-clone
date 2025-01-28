@@ -841,6 +841,13 @@ export default function ProjectDetailPage() {
                   <h2 className="text-2xl font-bold text-white">Tickets</h2>
                   <div className="flex items-center gap-4">
                     <button
+                      onClick={() => router.push(`/employee-portal/projects/${params.id}/tickets/new`)}
+                      className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                    >
+                      <FiPlusCircle className="w-5 h-5" />
+                      New Ticket
+                    </button>
+                    <button
                       onClick={() => setShowFilters(!showFilters)}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white"
                     >

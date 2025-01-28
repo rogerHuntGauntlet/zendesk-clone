@@ -16,6 +16,23 @@ export class NLPService {
     });
   }
 
+  private getTracingConfig(functionName: string) {
+    const sessionId = `${functionName}-${Date.now()}`;
+    return {
+      configurable: {
+        sessionId,
+        tags: ["zendesk-clone", functionName],
+        metadata: {
+          timestamp: new Date().toISOString(),
+          environment: process.env.NODE_ENV || 'development',
+          sessionId,
+          projectName: process.env.LANGCHAIN_PROJECT || process.env.LANGSMITH_PROJECT
+        }
+      },
+      runName: `${functionName} - ${sessionId}`
+    };
+  }
+
   async analyzeSentiment(text: string): Promise<'positive' | 'negative' | 'neutral'> {
     const chain = RunnableSequence.from([
       PromptTemplate.fromTemplate(
@@ -25,7 +42,7 @@ export class NLPService {
       new StringOutputParser()
     ]);
 
-    const result = await chain.invoke({ text });
+    const result = await chain.invoke({ text }, this.getTracingConfig('analyzeSentiment'));
     return result.toLowerCase().trim() as 'positive' | 'negative' | 'neutral';
   }
 
@@ -38,8 +55,44 @@ export class NLPService {
       new StringOutputParser()
     ]);
 
-    const result = await chain.invoke({ text });
+    const result = await chain.invoke({ text }, this.getTracingConfig('extractKeywords'));
     return result.split(',').map(keyword => keyword.trim());
+  }
+
+  async testLangSmithTracing(): Promise<string> {
+    const sessionId = `test-${Date.now()}`;
+    console.log(`Starting test with session ID: ${sessionId}`);
+
+    const prompt = PromptTemplate.fromTemplate('Say hello to {name}');
+    const llm = this.config.getOpenAI();
+    const parser = new StringOutputParser();
+    
+    const chain = prompt.pipe(llm).pipe(parser);
+
+    console.log('Starting chain execution with tracing...');
+    try {
+      const result = await chain.invoke({ 
+        name: 'World',
+      }, {
+        configurable: {
+          sessionId,
+          tags: ["test-trace", "zendesk-clone"],
+          metadata: {
+            test: true,
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV || 'development',
+            sessionId,
+            projectName: process.env.LANGCHAIN_PROJECT || process.env.LANGSMITH_PROJECT
+          }
+        },
+        runName: `Hello World Test - ${sessionId}`
+      });
+      console.log(`Chain execution completed successfully for session ${sessionId}`);
+      return result;
+    } catch (error) {
+      console.error(`Chain execution failed for session ${sessionId}:`, error);
+      throw error;
+    }
   }
 
   async generateResponse(context: string, query: string): Promise<string> {
@@ -51,7 +104,10 @@ export class NLPService {
       new StringOutputParser()
     ]);
 
-    const result = await chain.invoke({ context, query });
+    const result = await chain.invoke(
+      { context, query }, 
+      this.getTracingConfig('generateResponse')
+    );
     return result.trim();
   }
 
@@ -64,7 +120,7 @@ export class NLPService {
       new StringOutputParser()
     ]);
 
-    const result = await chain.invoke({ text });
+    const result = await chain.invoke({ text }, this.getTracingConfig('classifyIntent'));
     return result.toLowerCase().trim();
   }
 

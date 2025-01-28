@@ -966,6 +966,13 @@ export default function ProjectDetailPage() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-white">Tickets</h2>
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => router.push(`/admin-portal/projects/${params.id}/tickets/new`)}
+                    className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                  >
+                    <FiPlusCircle className="w-5 h-5" />
+                    New Ticket
+                  </button>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
