@@ -4,14 +4,29 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
 import BizDevContacts from '../components/ui/bizdev/BizDevContacts';
+import { NewTicketModal } from '../../client-portal/components/ui/new-ticket-modal';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('projects');
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+
+  const handleTicketSubmit = async (ticketData: any) => {
+    // TODO: Implement ticket creation logic
+    setIsTicketModalOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Admin Dashboard</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+          <Button onClick={() => setIsTicketModalOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Ticket
+          </Button>
+        </div>
         <div className="space-y-8">
           {/* Tab Navigation */}
           <div className="flex gap-4 border-b border-white/10">
@@ -86,6 +101,13 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      <NewTicketModal
+        isOpen={isTicketModalOpen}
+        onClose={() => setIsTicketModalOpen(false)}
+        projectId="admin"
+        onSubmit={handleTicketSubmit}
+      />
     </div>
   );
 } 
