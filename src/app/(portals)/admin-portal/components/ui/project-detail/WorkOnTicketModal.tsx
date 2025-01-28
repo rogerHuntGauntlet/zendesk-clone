@@ -12,27 +12,41 @@ interface WorkOnTicketModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSessionComplete: () => void;
-  ticket: {
-    id: string;
-    title: string;
-    description: string;
-    status: string;
-  };
+  ticket: any;
   readOnlySession?: {
     id: string;
     summary: string;
     created_at: string;
-    activities: Array<{
-      id: string;
-      activity_type: string;
-      content?: string;
-      media_url?: string;
-      created_at: string;
-      metadata: any;
-    }>;
+    created_by: string;
+    user_email?: string;
+    user_role?: 'admin' | 'employee' | 'client';
+    activities: Activity[];
+    expanded: boolean;
+    ai_session_data?: {
+      research_data?: {
+        company: {
+          name: string;
+          overview: string;
+          industry: string;
+          size: string;
+          technology: string[] | string;
+          recent_developments: string;
+          product?: string;
+        };
+        person: {
+          name: string;
+          email: string;
+          role: string;
+          background: string;
+          interests: string[];
+          pain_points: string[];
+        };
+        qualification_score: number;
+      };
+    };
   };
   isLoadingActivities?: boolean;
-  userRole?: 'client' | 'admin' | 'employee';
+  userRole?: 'admin' | 'employee' | 'client';
 }
 
 interface Activity {
@@ -42,6 +56,10 @@ interface Activity {
   media_url?: string;
   created_at: string;
   metadata: any;
+}
+
+function isAISession(session: any): boolean {
+  return session?.ai_session_data?.research_data !== undefined;
 }
 
 export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, ticket, readOnlySession, isLoadingActivities, userRole = 'admin' }: WorkOnTicketModalProps) {
@@ -735,7 +753,8 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
                     )}
                   </div>
 
-                  {sessionSummary && (
+                  {/* Show session summary only in non-AI view */}
+                  {!readOnlySession && sessionSummary && (
                     <div className="flex-none p-3 border-t border-white/10">
                       <h4 className="text-sm text-white font-medium mb-2">Session Summary</h4>
                       <div className="bg-gray-800/50 rounded p-2">
@@ -745,92 +764,211 @@ export default function WorkOnTicketModal({ isOpen, onClose, onSessionComplete, 
                   )}
                 </div>
               </div>
-            ) : (
-              // Read-only View Layout
-              <div className="flex-1 grid grid-cols-2 gap-8 p-6 min-h-0">
-                <div className="bg-gray-800/50 rounded-lg p-6">
-                  <h4 className="text-lg text-white font-medium mb-4">Session Summary</h4>
-                  <div className="prose prose-invert max-w-none">
-                    <pre className="whitespace-pre-wrap text-sm text-white/80">{sessionSummary}</pre>
-                  </div>
-                </div>
-
-                <div className="flex flex-col min-h-0">
-                  <h4 className="text-lg text-white font-medium mb-4">Session Activities</h4>
-                  <div className="flex-1 bg-gray-800/50 rounded-lg overflow-hidden">
-                    <div className="h-full overflow-y-auto p-6 space-y-4">
-                      {activities.map((activity) => (
-                        <div 
-                          key={activity.id}
-                          className="flex items-start gap-4 text-white/80 bg-gray-800/80 rounded-lg p-4"
-                        >
-                          <div className="flex-shrink-0 mt-1">
-                            {getActivityIcon(activity.activity_type)}
+            ) : readOnlySession.ai_session_data?.research_data ? (
+              // AI session read-only layout
+              <div className="flex-1 flex flex-col min-h-0 p-6">
+                {/* Scrollable Content */}
+                <div className="flex-1 bg-gray-800/50 rounded-lg overflow-hidden flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {/* Research Data Grid */}
+                    <div className="grid grid-cols-2 gap-6">
+                      {/* Company Analysis */}
+                      <div>
+                        <h5 className="text-md font-medium text-white/80 mb-3">Company Analysis</h5>
+                        <div className="bg-gray-900/50 rounded-lg p-4 space-y-4">
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Overview</h6>
+                            <p className="text-sm text-white/80">{typeof readOnlySession.ai_session_data.research_data.company.overview === 'object' ? 
+                              JSON.stringify(readOnlySession.ai_session_data.research_data.company.overview, null, 2) : 
+                              readOnlySession.ai_session_data.research_data.company.overview}</p>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
-                              <span className="font-medium capitalize">
-                                {activity.activity_type.replace('_', ' ')}
-                              </span>
-                              <span className="text-sm text-white/40">
-                                {formatActivityTime(activity.created_at)}
-                              </span>
-                            </div>
-
-                            {/* Display media content */}
-                            {(activity.activity_type === 'audio' || activity.activity_type === 'video' || activity.activity_type === 'screen') && activity.media_url && (
-                              <div className="mt-3">
-                                {activity.activity_type === 'audio' ? (
-                                  <audio 
-                                    controls 
-                                    className="w-full" 
-                                    src={activity.media_url}
-                                  >
-                                    Your browser does not support the audio element.
-                                  </audio>
-                                ) : (
-                                  <video 
-                                    controls 
-                                    className="w-full rounded" 
-                                    src={activity.media_url}
-                                  >
-                                    Your browser does not support the video element.
-                                  </video>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Display comment content */}
-                            {activity.content && activity.activity_type === 'comment' && (
-                              <p className="text-sm text-white/60 mt-2">
-                                {activity.content}
-                              </p>
-                            )}
-
-                            {/* Display AI chat messages */}
-                            {activity.metadata?.messages && (
-                              <div className="mt-4 space-y-3">
-                                {activity.metadata.messages.map((msg: any, index: number) => (
-                                  <div
-                                    key={index}
-                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                  >
-                                    <div
-                                      className={`max-w-[80%] rounded-lg p-3 ${
-                                        msg.role === 'user'
-                                          ? 'bg-violet-600/80 text-white'
-                                          : 'bg-gray-700/80 text-gray-100'
-                                      }`}
-                                    >
-                                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Industry</h6>
+                            <p className="text-sm text-white/80">{typeof readOnlySession.ai_session_data.research_data.company.industry === 'object' ? 
+                              JSON.stringify(readOnlySession.ai_session_data.research_data.company.industry, null, 2) : 
+                              readOnlySession.ai_session_data.research_data.company.industry}</p>
+                          </div>
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Size</h6>
+                            <p className="text-sm text-white/80">{typeof readOnlySession.ai_session_data.research_data.company.size === 'object' ? 
+                              JSON.stringify(readOnlySession.ai_session_data.research_data.company.size, null, 2) : 
+                              readOnlySession.ai_session_data.research_data.company.size}</p>
+                          </div>
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Technology Stack</h6>
+                            <p className="text-sm text-white/80">{Array.isArray(readOnlySession.ai_session_data.research_data.company.technology) ? 
+                              readOnlySession.ai_session_data.research_data.company.technology.join(', ') : 
+                              typeof readOnlySession.ai_session_data.research_data.company.technology === 'object' ?
+                              JSON.stringify(readOnlySession.ai_session_data.research_data.company.technology, null, 2) :
+                              readOnlySession.ai_session_data.research_data.company.technology}</p>
+                          </div>
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Recent Developments</h6>
+                            <p className="text-sm text-white/80">{typeof readOnlySession.ai_session_data.research_data.company.recent_developments === 'object' ? 
+                              JSON.stringify(readOnlySession.ai_session_data.research_data.company.recent_developments, null, 2) : 
+                              readOnlySession.ai_session_data.research_data.company.recent_developments}</p>
                           </div>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Contact Analysis */}
+                      <div>
+                        <h5 className="text-md font-medium text-white/80 mb-3">Contact Analysis</h5>
+                        <div className="bg-gray-900/50 rounded-lg p-4 space-y-4">
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Role</h6>
+                            <p className="text-sm text-white/80">{readOnlySession.ai_session_data.research_data.person.role}</p>
+                          </div>
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Background</h6>
+                            <p className="text-sm text-white/80">{readOnlySession.ai_session_data.research_data.person.background}</p>
+                          </div>
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Interests</h6>
+                            <p className="text-sm text-white/80">{Array.isArray(readOnlySession.ai_session_data.research_data.person.interests) ? 
+                              readOnlySession.ai_session_data.research_data.person.interests.join(', ') : 
+                              'No interests found'}</p>
+                          </div>
+                          <div>
+                            <h6 className="text-sm font-medium text-white/60 mb-2">Pain Points</h6>
+                            <p className="text-sm text-white/80">{Array.isArray(readOnlySession.ai_session_data.research_data.person.pain_points) ? 
+                              readOnlySession.ai_session_data.research_data.person.pain_points.join(', ') : 
+                              'No pain points identified'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Session Summary */}
+                      {sessionSummary && (
+                        <div>
+                          <h5 className="text-md font-medium text-white/80 mb-3">Session Summary</h5>
+                          <div className="bg-gray-900/50 rounded-lg p-4">
+                            <pre className="whitespace-pre-wrap text-sm text-white/80">{sessionSummary}</pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Qualification Score */}
+                      <div>
+                        <h5 className="text-md font-medium text-white/80 mb-3">Qualification Score</h5>
+                        <div className="bg-gray-900/50 rounded-lg p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 bg-gray-800 rounded-full h-2">
+                              <div 
+                                className={`h-full rounded-full ${
+                                  (readOnlySession?.ai_session_data?.research_data?.qualification_score || 0) >= 70 ? 'bg-green-500' :
+                                  (readOnlySession?.ai_session_data?.research_data?.qualification_score || 0) >= 40 ? 'bg-yellow-500' :
+                                  'bg-red-500'
+                                }`}
+                                style={{ width: `${readOnlySession?.ai_session_data?.research_data?.qualification_score || 0}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-medium text-white/80">
+                              {Math.round(readOnlySession?.ai_session_data?.research_data?.qualification_score || 0)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Non-AI session read-only layout
+              <div className="flex-1 flex flex-col min-h-0 p-6">
+                <div className="flex-1 bg-gray-800/50 rounded-lg overflow-hidden flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto p-6">
+                    <div className="grid grid-cols-2 gap-6 h-full">
+                      {/* Session Summary */}
+                      {sessionSummary && (
+                        <div>
+                          <h5 className="text-md font-medium text-white/80 mb-3">Session Summary</h5>
+                          <div className="bg-gray-900/50 rounded-lg p-4">
+                            <pre className="whitespace-pre-wrap text-sm text-white/80">{sessionSummary}</pre>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Session Activities */}
+                      <div>
+                        <h5 className="text-md font-medium text-white/80 mb-3">Session Activities</h5>
+                        <div className="bg-gray-900/50 rounded-lg p-4">
+                          <div className="space-y-4">
+                            {activities.map((activity) => (
+                              <div 
+                                key={activity.id}
+                                className="flex items-start gap-4 text-white/80 bg-gray-800/80 rounded-lg p-4"
+                              >
+                                <div className="flex-shrink-0 mt-1">
+                                  {getActivityIcon(activity.activity_type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-medium capitalize">
+                                      {activity.activity_type.replace('_', ' ')}
+                                    </span>
+                                    <span className="text-sm text-white/40">
+                                      {formatActivityTime(activity.created_at)}
+                                    </span>
+                                  </div>
+
+                                  {/* Display media content */}
+                                  {(activity.activity_type === 'audio' || activity.activity_type === 'video' || activity.activity_type === 'screen') && activity.media_url && (
+                                    <div className="mt-3">
+                                      {activity.activity_type === 'audio' ? (
+                                        <audio 
+                                          controls 
+                                          className="w-full" 
+                                          src={activity.media_url}
+                                        >
+                                          Your browser does not support the audio element.
+                                        </audio>
+                                      ) : (
+                                        <video 
+                                          controls 
+                                          className="w-full rounded" 
+                                          src={activity.media_url}
+                                        >
+                                          Your browser does not support the video element.
+                                        </video>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Display comment content */}
+                                  {activity.content && activity.activity_type === 'comment' && (
+                                    <p className="text-sm text-white/60 mt-2">
+                                      {activity.content}
+                                    </p>
+                                  )}
+
+                                  {/* Display AI chat messages */}
+                                  {activity.metadata?.messages && (
+                                    <div className="mt-4 space-y-3">
+                                      {activity.metadata.messages.map((msg: any, index: number) => (
+                                        <div
+                                          key={index}
+                                          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                          <div
+                                            className={`max-w-[80%] rounded-lg p-3 ${
+                                              msg.role === 'user'
+                                                ? 'bg-violet-600/80 text-white'
+                                                : 'bg-gray-700/80 text-gray-100'
+                                            }`}
+                                          >
+                                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

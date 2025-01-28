@@ -387,6 +387,44 @@ export default function ClientProjects() {
     }
   };
 
+  const handleRejectInvite = async (projectId: string) => {
+    try {
+      console.log('Starting invite rejection process for project:', projectId);
+      
+      // Get the pending invite
+      const { data: invite, error: inviteError } = await supabase
+        .from('zen_pending_invites')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('email', user?.email)
+        .eq('status', 'pending')
+        .single();
+
+      console.log('Found pending invite:', invite);
+      if (inviteError) throw inviteError;
+
+      // Update invite status to rejected
+      console.log('Updating invite status to rejected');
+      const { error: updateError } = await supabase
+        .from('zen_pending_invites')
+        .update({ status: 'rejected' })
+        .eq('id', invite.id);
+
+      if (updateError) {
+        console.error('Error updating invite:', updateError);
+        throw updateError;
+      }
+      console.log('Updated invite status');
+
+      toast.success('Invite rejected');
+      setProjects([]); // Clear current projects
+      await fetchProjects(); // Refresh the projects list
+    } catch (error) {
+      console.error('Detailed error in rejecting invite:', error);
+      toast.error('Failed to reject invite');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-green-50 flex items-center justify-center">
@@ -518,12 +556,19 @@ export default function ClientProjects() {
                               </div>
                             </div>
                             {project.status === 'pending' ? (
-                              <div className="mt-6">
+                              <div className="mt-6 space-y-2">
                                 <Button
                                   onClick={() => handleAcceptInvite(project.id)}
                                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                                 >
                                   Accept Invite
+                                </Button>
+                                <Button
+                                  onClick={() => handleRejectInvite(project.id)}
+                                  variant="outline"
+                                  className="w-full border-red-200 text-red-700 hover:bg-red-50"
+                                >
+                                  Reject Invite
                                 </Button>
                               </div>
                             ) : (

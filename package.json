@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "dotenv -e .env.local -- tsx src/app/ai_agents/__tests__/bizdev-agent.test.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -14,10 +15,14 @@
     "@headlessui/react": "^2.2.0",
     "@hello-pangea/dnd": "^17.0.0",
     "@heroicons/react": "^2.2.0",
+    "@langchain/community": "^0.3.27",
+    "@langchain/core": "^0.3.36",
+    "@langchain/openai": "^0.4.2",
     "@monaco-editor/react": "^4.6.0",
     "@mui/icons-material": "^6.4.1",
     "@mui/lab": "^6.0.0-beta.24",
     "@mui/material": "^6.4.1",
+    "@pinecone-database/pinecone": "^4.1.0",
     "@radix-ui/react-alert-dialog": "^1.1.4",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-checkbox": "^1.1.3",
@@ -44,6 +49,7 @@
     "@tiptap/starter-kit": "^2.11.3",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
+    "@types/pg": "^8.11.11",
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vercel/postgres": "^0.10.0",
@@ -54,6 +60,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.4.7",
     "eventsource-parser": "^3.0.0",
     "framer-motion": "^12.0.5",
     "jsonwebtoken": "^9.0.2",
@@ -76,7 +83,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "recharts": "^2.15.0",
     "remark-gfm": "^4.0.0",
-    "replicate": "^1.0.1",
+    "replicate": "^0.29.4",
     "shadcn-ui": "^0.9.4",
     "sonner": "^1.7.2",
     "tailwind-merge": "^2.6.0",
@@ -87,6 +94,10 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv-cli": "^8.0.0",
+    "supabase": "^2.6.8",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.6.2"
   }
 }

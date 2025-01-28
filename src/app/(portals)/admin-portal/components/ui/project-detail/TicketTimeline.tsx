@@ -21,6 +21,7 @@ interface TicketTimelineProps {
       created_at: string;
       created_by: string;
       created_by_role: string;
+      ai_session_data?: any;
     }>;
     zen_ticket_activities?: Array<{
       id: string;
@@ -51,6 +52,7 @@ interface Session {
   user_role?: 'admin' | 'employee' | 'client';
   activities: Activity[];
   expanded: boolean;
+  ai_session_data?: any;
 }
 
 interface Activity {
@@ -116,7 +118,9 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
           summary,
           created_at,
           created_by,
-          created_by_role
+          created_by_role,
+          ticket_id,
+          ai_session_data
         `)
         .eq('ticket_id', ticket.id)
         .order('created_at', { ascending: false })
@@ -127,15 +131,19 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
       // Get user emails for created_by values
       const createdByIds = (summaries || [])
         .map(s => s.created_by)
-        .filter((id, index, self) => self.indexOf(id) === index);
+        .filter((id, index, self) => self.indexOf(id) === index)
+        .filter(Boolean); // Filter out null/undefined values
 
-      const { data: users } = await supabase
-        .from('zen_users')
-        .select('id, email')
-        .in('id', createdByIds);
+      let userEmailMap = new Map();
+      if (createdByIds.length > 0) {
+        const { data: users } = await supabase
+          .from('zen_users')
+          .select('id, email')
+          .in('id', createdByIds);
 
-      // Create a map of user IDs to emails
-      const userEmailMap = new Map(users?.map(u => [u.id, u.email]) || []);
+        // Create a map of user IDs to emails
+        userEmailMap = new Map(users?.map(u => [u.id, u.email]) || []);
+      }
 
       // Check if there are more sessions
       const { count } = await supabase
@@ -154,7 +162,8 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
         user_email: userEmailMap.get(summary.created_by) || summary.created_by,
         user_role: summary.created_by_role as Session['user_role'],
         activities: [], // Empty initially
-        expanded: false
+        expanded: false,
+        ai_session_data: summary.ai_session_data // Add AI session data
       }));
 
       if (pageNum === 0) {
@@ -212,7 +221,7 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
     // Show modal immediately with loading state
     setSelectedSession({
       ...session,
-      activities: [] // Start with empty activities
+      activities: [], // Start with empty activities
     });
     setShowWorkModal(true);
     setIsReadOnly(true);
@@ -223,7 +232,8 @@ export default function TicketTimeline({ isOpen, onClose, ticket }: TicketTimeli
     // Update the selected session with loaded activities
     setSelectedSession(prev => prev ? { 
       ...prev, 
-      activities: activities 
+      activities: activities,
+      ai_session_data: session.ai_session_data // Make sure ai_session_data is included
     } : null);
   };
 

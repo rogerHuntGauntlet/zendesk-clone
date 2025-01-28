@@ -17,6 +17,8 @@ import { StrictModeDroppable } from '@/app/components/StrictModeDroppable';
 import { FiPlusCircle, FiClock, FiPause, FiCheckCircle, FiArchive, FiCircle, FiBook } from 'react-icons/fi';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../../hooks/useAuth';
+import BizDevContacts from '../../components/ui/bizdev/BizDevContacts';
+import { AgentFactory } from '@/app/ai_agents/core/AgentFactory';
 
 // Types
 interface Project {
@@ -29,6 +31,7 @@ interface Project {
   employee_count: number;
   client_count: number;
   active_tickets: number;
+  projectType: string;
 }
 
 interface ProjectMember {
@@ -138,17 +141,37 @@ export default function ProjectDetailPage() {
   const [isAssignTicketModalOpen, setIsAssignTicketModalOpen] = useState(false);
   const [isInviteClientModalOpen, setIsInviteClientModalOpen] = useState(false);
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
+  const [isAIUpdateModalOpen, setIsAIUpdateModalOpen] = useState(false);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [isManagementSectionExpanded, setIsManagementSectionExpanded] = useState(true);
+  const [isBizDevSectionExpanded, setIsBizDevSectionExpanded] = useState(true);
   const [ticketView, setTicketView] = useState<TicketView>('list');
   const [isUpdateStatusModalOpen, setIsUpdateStatusModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedTickets, setSelectedTickets] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('tickets');
+  const [ticketSearch, setTicketSearch] = useState('');
+  const [showProspectsOnly, setShowProspectsOnly] = useState(false);
   const [groupedTickets, setGroupedTickets] = useState<GroupedTickets>({
     new: [],
     in_progress: [],
     resolved: []
+  });
+  const [aiUpdateStatus, setAIUpdateStatus] = useState<{
+    step: string;
+    error?: string;
+    ticket?: Ticket;
+  }>({ step: '' });
+
+  const filteredTickets = tickets.filter(ticket => {
+    const matchesSearch = ticket.title.toLowerCase().includes(ticketSearch.toLowerCase()) ||
+                         ticket.description.toLowerCase().includes(ticketSearch.toLowerCase());
+    
+    if (showProspectsOnly) {
+      return ticket.title.startsWith('Prospect:') && matchesSearch;
+    }
+    
+    return matchesSearch;
   });
 
   const groupTickets = (tickets: Ticket[]): GroupedTickets => {
@@ -168,9 +191,9 @@ export default function ProjectDetailPage() {
   };
 
   useEffect(() => {
-    const grouped = groupTickets(tickets);
+    const grouped = groupTickets(filteredTickets);
     setGroupedTickets(grouped);
-  }, [tickets]);
+  }, [filteredTickets.length, ticketSearch, showProspectsOnly]);
 
   // Function to render ticket card (shared between views)
   const renderTicketCard = (ticket: Ticket, className: string = '') => (
@@ -228,6 +251,17 @@ export default function ProjectDetailPage() {
           >
             Work on it
           </button>
+          {ticket.title.startsWith('Prospect:') && (
+            <button
+              onClick={() => handleRunAIUpdate(ticket)}
+              className="bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 px-3 py-1 rounded-md text-sm flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              AI Update
+            </button>
+          )}
           {ticket.status !== 'resolved' && (
             <button
               onClick={() => handleUpdateTicketStatus(ticket.id, 'resolved')}
@@ -240,6 +274,88 @@ export default function ProjectDetailPage() {
       </div>
     </div>
   );
+
+  const handleRunAIUpdate = async (ticket: Ticket) => {
+    if (!project) {
+      toast.error('Project not found');
+      return;
+    }
+
+    setAIUpdateStatus({ step: 'Initializing research process...', ticket });
+    setIsAIUpdateModalOpen(true);
+
+    try {
+      // Step 1: Initialization
+      setAIUpdateStatus({ step: 'Initializing research process...', ticket });
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Give UI time to update
+
+      // Step 2: Extract prospect info
+      setAIUpdateStatus({ step: 'Extracting prospect information...', ticket });
+      const description = ticket.description;
+      const lines = description.split('\n');
+      const prospectData: any = {};
+      
+      lines.forEach(line => {
+        if (line.startsWith('Company:')) {
+          prospectData.company = line.replace('Company:', '').trim();
+        } else if (line.startsWith('Email:')) {
+          prospectData.email = line.replace('Email:', '').trim();
+        } else if (line.startsWith('Product/Service:')) {
+          prospectData.product = line.replace('Product/Service:', '').trim();
+        } else if (line.startsWith('Notes:')) {
+          prospectData.notes = line.replace('Notes:', '').trim();
+        }
+      });
+      
+      prospectData.name = ticket.title.replace('Prospect:', '').trim();
+      prospectData.projectId = project.id;
+
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Give UI time to update
+
+      // Step 3: Initialize BizDev agent
+      setAIUpdateStatus({ step: 'Initializing BizDev agent...', ticket });
+      const factory = AgentFactory.getInstance(supabase);
+      const { data: existingAgent } = await supabase
+        .from('zen_agents')
+        .select('*')
+        .eq('email', 'bizdev_agent@system.internal')
+        .single();
+
+      if (!existingAgent) {
+        throw new Error('BizDev agent not found');
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Give UI time to update
+
+      // Step 4: Run research
+      setAIUpdateStatus({ step: 'Running web research and analysis...', ticket });
+      const bizDevAgent = await factory.getExistingAgent(existingAgent.id);
+      await bizDevAgent.execute('research_prospects', {
+        projectId: project.id,
+        ticketId: ticket.id,
+        prospect_data: {
+          ...prospectData,
+          info: `Name: ${prospectData.name}\nCompany: ${prospectData.company}\nEmail: ${prospectData.email || 'N/A'}\nProduct/Service: ${prospectData.product}\nNotes: ${prospectData.notes || 'N/A'}`
+        }
+      });
+
+      // Step 5: Completion
+      setAIUpdateStatus({ step: 'Research completed successfully!', ticket });
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Show success message
+      
+      // Close AI update modal and open timeline
+      setIsAIUpdateModalOpen(false);
+      setSelectedTicket(ticket);
+      setIsTimelineModalOpen(true);
+    } catch (error) {
+      console.error('Error running AI update:', error);
+      setAIUpdateStatus({ 
+        step: 'Error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        ticket
+      });
+    }
+  };
 
   useEffect(() => {
     const loadUser = async () => {
@@ -688,6 +804,26 @@ export default function ProjectDetailPage() {
             Tickets
           </button>
           <button
+            onClick={() => setActiveTab('management')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'management'
+                ? 'bg-violet-500 text-white'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            Project Management
+          </button>
+          <button
+            onClick={() => setActiveTab('bizdev')}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === 'bizdev'
+                ? 'bg-violet-500 text-white'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            BizDev Contacts
+          </button>
+          <button
             onClick={() => setActiveTab('analytics')}
             className={`px-4 py-2 rounded-lg ${
               activeTab === 'analytics'
@@ -720,150 +856,157 @@ export default function ProjectDetailPage() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'tickets' && (
+        {activeTab === 'management' && (
           <div className="space-y-6">
-            {/* Team Management Section */}
-            <div>
-              <div 
-                className="flex justify-between items-center mb-4 cursor-pointer"
-                onClick={() => setIsManagementSectionExpanded(!isManagementSectionExpanded)}
-              >
-                <h2 className="text-2xl font-bold text-white">Project Management</h2>
-                <div className="flex items-center gap-2 text-white/80 hover:text-white">
-                  <span className="text-sm">
-                    {isManagementSectionExpanded ? 'Hide' : 'Show'} Management
-                  </span>
-                  {isManagementSectionExpanded ? (
-                    <ChevronUpIcon className="w-6 h-6" />
-                  ) : (
-                    <ChevronDownIcon className="w-6 h-6" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Team Members Management */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-white">Team Members</h2>
+                  <button
+                    onClick={() => setIsAddMemberModalOpen(true)}
+                    className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                  >
+                    <FiPlusCircle className="w-5 h-5" />
+                    Add Member
+                  </button>
+                </div>
+                <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                  {members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
+                    >
+                      <div>
+                        <p className="text-white font-medium">{member.user.name}</p>
+                        <p className="text-white/60 text-sm">{member.user.email}</p>
+                        <p className="text-white/40 text-sm capitalize">{member.role}</p>
+                      </div>
+                      <button className="text-red-400 hover:text-red-300 text-sm">
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {members.length === 0 && pendingInvites.filter(invite => invite.role !== 'client').length === 0 && (
+                    <p className="text-white/60 text-center py-4">No team members yet</p>
                   )}
+                  {pendingInvites.filter(invite => invite.role !== 'client').map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
+                    >
+                      <div>
+                        <p className="text-white font-medium">{invite.email}</p>
+                        <p className="text-white/60 text-sm">Pending Invitation</p>
+                      </div>
+                      <span className="text-yellow-400 text-sm">Pending</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {isManagementSectionExpanded && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                  {/* Team Members Management */}
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-xl font-semibold text-white">Team Members</h2>
-                      <button
-                        onClick={() => setIsAddMemberModalOpen(true)}
-                        className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
-                      >
-                        <FiPlusCircle className="w-5 h-5" />
-                        Add Member
-                      </button>
-                    </div>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                      {members.map((member) => (
-                        <div
-                          key={member.id}
-                          className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
-                        >
-                          <div>
-                            <p className="text-white font-medium">{member.user.name}</p>
-                            <p className="text-white/60 text-sm">{member.user.email}</p>
-                            <p className="text-white/40 text-sm capitalize">{member.role}</p>
-                          </div>
-                          <button className="text-red-400 hover:text-red-300 text-sm">
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                      {members.length === 0 && pendingInvites.filter(invite => invite.role !== 'client').length === 0 && (
-                        <p className="text-white/60 text-center py-4">No team members yet</p>
-                      )}
-                      {pendingInvites.filter(invite => invite.role !== 'client').map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
-                        >
-                          <div>
-                            <p className="text-white font-medium">{invite.email}</p>
-                            <p className="text-white/60 text-sm">Pending Invitation</p>
-                          </div>
-                          <span className="text-yellow-400 text-sm">Pending</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Clients Management */}
-                  <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-xl font-semibold text-white">Clients</h2>
-                      <button
-                        onClick={() => setIsInviteClientModalOpen(true)}
-                        className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
-                      >
-                        <FiPlusCircle className="w-5 h-5" />
-                        Invite Client
-                      </button>
-                    </div>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                      {clients.map((client) => (
-                        <div
-                          key={client.id}
-                          className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
-                        >
-                          <div>
-                            <p className="text-white font-medium">{client.user.name}</p>
-                            <p className="text-white/60 text-sm">{client.user.email}</p>
-                            <p className="text-white/40 text-sm">{client.user.company}</p>
-                          </div>
-                          <button className="text-red-400 hover:text-red-300 text-sm">
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                      {clients.length === 0 && pendingInvites.filter(invite => invite.role === 'client').length === 0 && (
-                        <p className="text-white/60 text-center py-4">No clients yet</p>
-                      )}
-                      {pendingInvites.filter(invite => invite.role === 'client').map((invite) => (
-                        <div
-                          key={invite.id}
-                          className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
-                        >
-                          <div>
-                            <p className="text-white font-medium">{invite.email}</p>
-                            <p className="text-white/60 text-sm">Pending Invitation</p>
-                          </div>
-                          <span className="text-yellow-400 text-sm">Pending</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+              {/* Clients Management */}
+              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-white">Clients</h2>
+                  <button
+                    onClick={() => setIsInviteClientModalOpen(true)}
+                    className="bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-md text-sm flex items-center gap-2"
+                  >
+                    <FiPlusCircle className="w-5 h-5" />
+                    Invite Client
+                  </button>
                 </div>
-              )}
+                <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                  {clients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
+                    >
+                      <div>
+                        <p className="text-white font-medium">{client.user.name}</p>
+                        <p className="text-white/60 text-sm">{client.user.email}</p>
+                        <p className="text-white/40 text-sm">{client.user.company}</p>
+                      </div>
+                      <button className="text-red-400 hover:text-red-300 text-sm">
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {clients.length === 0 && pendingInvites.filter(invite => invite.role === 'client').length === 0 && (
+                    <p className="text-white/60 text-center py-4">No clients yet</p>
+                  )}
+                  {pendingInvites.filter(invite => invite.role === 'client').map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-lg"
+                    >
+                      <div>
+                        <p className="text-white font-medium">{invite.email}</p>
+                        <p className="text-white/60 text-sm">Pending Invitation</p>
+                      </div>
+                      <span className="text-yellow-400 text-sm">Pending</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+          </div>
+        )}
 
-            {/* Tickets Section */}
+        {activeTab === 'bizdev' && (
+          <div className="space-y-6">
+            <BizDevContacts projectId={params.id as string} />
+          </div>
+        )}
+
+        {activeTab === 'tickets' && (
+          <div className="space-y-6">
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-white">Tickets</h2>
-                <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
-                  <button
-                    onClick={() => setTicketView('list')}
-                    className={`p-2 rounded ${ticketView === 'list' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
-                    title="List View"
-                  >
-                    <ViewListIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setTicketView('grid')}
-                    className={`p-2 rounded ${ticketView === 'grid' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
-                    title="Grid View"
-                  >
-                    <ViewGridIcon className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setTicketView('kanban')}
-                    className={`p-2 rounded ${ticketView === 'kanban' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
-                    title="Kanban View"
-                  >
-                    <ViewBoardsIcon className="w-5 h-5" />
-                  </button>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Search tickets..."
+                      value={ticketSearch}
+                      onChange={(e) => setTicketSearch(e.target.value)}
+                      className="px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                    <label className="flex items-center gap-2 text-white/60">
+                      <input
+                        type="checkbox"
+                        checked={showProspectsOnly}
+                        onChange={(e) => setShowProspectsOnly(e.target.checked)}
+                        className="rounded bg-white/5 border-white/20 text-violet-500 focus:ring-violet-500"
+                      />
+                      Prospects Only
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1">
+                    <button
+                      onClick={() => setTicketView('list')}
+                      className={`p-2 rounded ${ticketView === 'list' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
+                      title="List View"
+                    >
+                      <ViewListIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setTicketView('grid')}
+                      className={`p-2 rounded ${ticketView === 'grid' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
+                      title="Grid View"
+                    >
+                      <ViewGridIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setTicketView('kanban')}
+                      className={`p-2 rounded ${ticketView === 'kanban' ? 'bg-white/10 text-violet-400' : 'text-white/60 hover:text-white'}`}
+                      title="Kanban View"
+                    >
+                      <ViewBoardsIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -920,7 +1063,7 @@ export default function ProjectDetailPage() {
                 </DragDropContext>
               ) : (
                 <div className={ticketView === 'grid' ? 'grid grid-cols-2 gap-4' : 'space-y-4'}>
-                  {tickets.map((ticket) => renderTicketCard(ticket))}
+                  {filteredTickets.map((ticket) => renderTicketCard(ticket))}
                 </div>
               )}
             </div>
@@ -966,6 +1109,88 @@ export default function ProjectDetailPage() {
         onClose={() => setIsInviteClientModalOpen(false)}
         onSubmit={handleInviteClient}
       />
+
+      {/* AI Update Progress Modal */}
+      <div className={`fixed inset-0 bg-black/50 flex items-center justify-center transition-opacity ${isAIUpdateModalOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 border border-white/10">
+          <div className="flex flex-col items-center text-center">
+            {!aiUpdateStatus.error ? (
+              <>
+                <div className="mb-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-violet-500 border-t-transparent"></div>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-4">AI Research in Progress</h3>
+                
+                {/* Progress Steps */}
+                <div className="w-full space-y-3 mb-4">
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Starting') ? 'text-violet-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('Starting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('Starting') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                    </div>
+                    <span>Initializing AI Research</span>
+                  </div>
+
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Extracting') ? 'text-violet-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('Extracting') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('Extracting') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                    </div>
+                    <span>Extracting Information</span>
+                  </div>
+
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('Running') ? 'text-violet-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('Running') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('Running') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                    </div>
+                    <span>Conducting Research</span>
+                  </div>
+
+                  <div className={`flex items-center ${aiUpdateStatus.step.includes('completed') ? 'text-violet-400' : 'text-white/60'}`}>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 ${
+                      aiUpdateStatus.step.includes('completed') ? 'border-violet-400 bg-violet-400/20' : 'border-white/20'
+                    }`}>
+                      {aiUpdateStatus.step.includes('completed') && <div className="w-2 h-2 bg-violet-400 rounded-full"></div>}
+                    </div>
+                    <span>Finalizing Results</span>
+                  </div>
+                </div>
+
+                <p className="text-white/80 text-sm">{aiUpdateStatus.step}</p>
+                <p className="text-white/60 text-xs mt-2">This process may take a few minutes</p>
+              </>
+            ) : (
+              <>
+                <div className="mb-4 text-red-500">
+                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">AI Research Failed</h3>
+                <p className="text-white/60 mb-4 text-sm">{aiUpdateStatus.error}</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setIsAIUpdateModalOpen(false)}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => handleRunAIUpdate(aiUpdateStatus.ticket!)}
+                    className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
 
       {selectedTicket && (
         <>

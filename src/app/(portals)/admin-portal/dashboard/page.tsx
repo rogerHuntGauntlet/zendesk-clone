@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import AdminAnalytics from '../components/ui/analytics/AdminAnalytics';
+import BizDevContacts from '../components/ui/bizdev/BizDevContacts';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('projects');
@@ -41,6 +42,15 @@ export default function AdminDashboard() {
             >
               Team Management
             </button>
+            <button
+              onClick={() => setActiveTab('bizdev')}
+              className={cn(
+                'px-4 py-2 text-sm font-medium transition-colors',
+                activeTab === 'bizdev' ? 'text-white border-b-2 border-white' : 'text-white/60 hover:text-white'
+              )}
+            >
+              BizDev
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -66,6 +76,12 @@ export default function AdminDashboard() {
                 <h3 className="text-lg font-medium text-gray-900">Team Management</h3>
                 <p className="text-gray-500 mt-2">Manage your teams and members</p>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'bizdev' && (
+            <div className="space-y-6">
+              <BizDevContacts />
             </div>
           )}
         </div>

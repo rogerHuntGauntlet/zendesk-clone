@@ -378,7 +378,7 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                   <motion.div
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="space-y-6"
+                    className="space-y-6 h-[500px] flex flex-col"
                   >
                     {/* Team members content */}
                     {fetchingUsers ? (
@@ -386,43 +386,9 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
                       </div>
                     ) : (
-                      <>
-                        {previouslyInvited.length > 0 && (
-                          <div className="bg-gray-50 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-gray-900">Previously Invited Members</h4>
-                            <div className="mt-3 space-y-2">
-                              {previouslyInvited.map((member) => (
-                                <div key={member.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 flex items-center justify-center">
-                                      <span className="text-white text-sm font-medium">
-                                        {member.email[0].toUpperCase()}
-                                      </span>
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-gray-900">{member.email}</p>
-                                      <p className="text-xs text-gray-500 capitalize">{member.role}</p>
-                                    </div>
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddMember(member.email, member.role)}
-                                    disabled={teamMembers.some(m => m.email === member.email)}
-                                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                      teamMembers.some(m => m.email === member.email)
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-violet-100 text-violet-700 hover:bg-violet-200'
-                                    }`}
-                                  >
-                                    {teamMembers.some(m => m.email === member.email) ? 'Added' : 'Add'}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="flex-1 flex flex-col space-y-4 overflow-hidden">
+                        {/* Invite New Member - Fixed at top */}
+                        <div className="bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 flex-none">
                           <h4 className="text-sm font-medium text-gray-900">Invite New Member</h4>
                           <div className="mt-3 space-y-3">
                             <input
@@ -461,34 +427,76 @@ export default function NewProjectModal({ isOpen, onClose, onSubmit }: NewProjec
                           </div>
                         </div>
 
-                        {teamMembers.length > 0 && (
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-medium text-gray-900">New Team Members</h4>
-                            {teamMembers.map((member) => (
-                              <div key={member.email} className="flex items-center justify-between p-3 bg-violet-50 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center">
-                                    <span className="text-violet-600 text-sm font-medium">
-                                      {member.email[0].toUpperCase()}
-                                    </span>
+                        {/* Scrollable Lists Container */}
+                        <div className="flex-1 min-h-0 space-y-4 overflow-y-auto pr-2">
+                          {/* New Team Members */}
+                          {teamMembers.length > 0 && (
+                            <div className="bg-violet-50 p-4 rounded-lg">
+                              <h4 className="text-sm font-medium text-gray-900">New Team Members</h4>
+                              <div className="mt-3 space-y-2">
+                                {teamMembers.map((member) => (
+                                  <div key={member.email} className="flex items-center justify-between p-3 bg-white rounded-lg border border-violet-200">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center">
+                                        <span className="text-violet-600 text-sm font-medium">
+                                          {member.email[0].toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-900">{member.email}</p>
+                                        <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveMember(member.email)}
+                                      className="text-violet-600 hover:text-violet-700"
+                                    >
+                                      <UserMinus className="w-5 h-5" />
+                                    </button>
                                   </div>
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">{member.email}</p>
-                                    <p className="text-xs text-gray-500 capitalize">{member.role}</p>
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveMember(member.email)}
-                                  className="text-violet-600 hover:text-violet-700"
-                                >
-                                  <UserMinus className="w-5 h-5" />
-                                </button>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </>
+                            </div>
+                          )}
+
+                          {/* Previously Invited Members */}
+                          {previouslyInvited.length > 0 && (
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <h4 className="text-sm font-medium text-gray-900">Previously Invited Members</h4>
+                              <div className="mt-3 space-y-2">
+                                {previouslyInvited.map((member) => (
+                                  <div key={member.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 flex items-center justify-center">
+                                        <span className="text-white text-sm font-medium">
+                                          {member.email[0].toUpperCase()}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <p className="text-sm font-medium text-gray-900">{member.email}</p>
+                                        <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddMember(member.email, member.role)}
+                                      disabled={teamMembers.some(m => m.email === member.email)}
+                                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                        teamMembers.some(m => m.email === member.email)
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-violet-100 text-violet-700 hover:bg-violet-200'
+                                      }`}
+                                    >
+                                      {teamMembers.some(m => m.email === member.email) ? 'Added' : 'Add'}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </motion.div>
                 )}
