@@ -22,6 +22,7 @@ import { AgentFactory } from '@/app/ai_agents/core/AgentFactory';
 import TicketList from '../../components/ui/TicketList';
 import { NewTicketModal } from '../../../client-portal/components/ui/new-ticket-modal';
 import TeamActivityFeed from '../../components/ui/project-detail/TeamActivityFeed';
+import AIMonitoringDashboard from '../../components/ui/project-detail/AIMonitoringDashboard';
 
 // Types
 interface Project {
@@ -834,6 +835,15 @@ export default function ProjectDetailPage() {
             Analytics
           </button>
           <button
+            onClick={() => setActiveTab('monitoring')}
+            className={`px-4 py-2 rounded-lg ${activeTab === 'monitoring'
+                ? 'bg-violet-500 text-white'
+                : 'bg-white/5 text-white/60 hover:bg-white/10'
+              }`}
+          >
+            AI Monitoring
+          </button>
+          <button
             onClick={() => setActiveTab('notes')}
             className={`px-4 py-2 rounded-lg ${activeTab === 'notes'
                 ? 'bg-violet-500 text-white'
@@ -1004,6 +1014,12 @@ export default function ProjectDetailPage() {
         {activeTab === 'analytics' && (
           <div className="space-y-8">
             <ProjectAnalytics projectId={project.id} />
+          </div>
+        )}
+
+        {activeTab === 'monitoring' && (
+          <div className="space-y-8">
+            <AIMonitoringDashboard projectId={project.id} />
           </div>
         )}
 

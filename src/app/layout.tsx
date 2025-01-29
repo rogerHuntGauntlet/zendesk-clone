@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { SupabaseProvider } from './providers';
 import "./globals.css";
+import { Toaster } from "@/components/ui/toaster"
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -26,6 +28,7 @@ export default function RootLayout({
         <SupabaseProvider>
           {children}
         </SupabaseProvider>
+        <Toaster />
       </body>
     </html>
   );

@@ -20,8 +20,13 @@ interface ResearchParams {
 
 interface OutreachParams {
   ticketId: string;
-  messageType: 'initial' | 'followup' | 'proposal';
-  context?: any;
+  messageType: 'initial' | 'followup' | 'proposal' | 'check_in' | 'milestone' | 'urgent';
+  context?: {
+    tone?: 'formal' | 'casual' | 'friendly' | 'urgent';
+    previousInteractions?: any[];
+    customFields?: Record<string, any>;
+  };
+  trackingEnabled?: boolean;
 }
 
 export class BizDevAgent extends BaseAgent {
@@ -34,10 +39,7 @@ export class BizDevAgent extends BaseAgent {
     this.nlpService = new NLPService();
   }
 
-  async execute(
-    action: 'research_prospects' | 'generate_outreach',
-    params: ResearchParams | OutreachParams
-  ): Promise<any> {
+  async execute(action: 'research_prospects' | 'generate_outreach', params: ResearchParams | OutreachParams): Promise<any> {
     await this.validateAccess();
 
     switch (action) {
@@ -254,141 +256,44 @@ export class BizDevAgent extends BaseAgent {
   }
 
   private async generateOutreach(params: OutreachParams): Promise<any> {
-    // Get ticket details with messages
-    const { data: ticket } = await this.client
-      .from('zen_tickets')
-      .select('*, zen_ticket_messages(*)')
-      .eq('id', params.ticketId)
-      .single();
-
-    // Get the agent's email
-    const { data: agent } = await this.client
-      .from('zen_agents')
-      .select('email, name')
-      .eq('id', this.agentId)
-      .single();
-
-    if (!agent?.email) {
-      throw new Error('Agent email not found');
-    }
-
-    // Get or create the zen_user associated with this agent's email
-    let { data: zenUser } = await this.client
-      .from('zen_users')
-      .select('id')
-      .eq('email', agent.email)
-      .single();
-
-    if (!zenUser) {
-      // Create a new zen_user for this agent
-      const { data: newUser, error: createError } = await this.client
-        .from('zen_users')
-        .insert({
-          email: agent.email,
-          name: agent.name || 'BizDev Agent',
-          role: 'admin'  // Using admin role for AI agents
-        })
-        .select()
+    try {
+      // Get ticket data
+      const { data: ticket } = await this.client
+        .from('zen_tickets')
+        .select('*')
+        .eq('id', params.ticketId)
         .single();
 
-      if (createError) {
-        throw new Error(`Failed to create zen_user for agent: ${createError.message}`);
+      if (!ticket) {
+        throw new Error('Ticket not found');
       }
-      zenUser = newUser;
+
+      // Generate context for the message
+      const context = await this.nlpService.generateResponse(
+        `Ticket: ${JSON.stringify(ticket)}\nPrompt: ${params.context?.customFields?.prompt || ''}`,
+        'Generate a professional outreach message based on this ticket and prompt.'
+      );
+
+      // Analyze sentiment and intent
+      const [sentiment, intent] = await Promise.all([
+        this.nlpService.analyzeSentiment(context),
+        this.nlpService.classifyIntent(context)
+      ]);
+
+      // Extract key topics
+      const keywords = await this.nlpService.extractKeywords(context);
+
+      // Generate the final message
+      const message = await this.nlpService.generateResponse(
+        context,
+        `Generate a ${params.context?.tone || 'professional'} outreach message that addresses: ${keywords.join(', ')}`
+      );
+
+      return { message, metadata: { sentiment, intent, keywords } };
+    } catch (error) {
+      console.error('Error in generateOutreach:', error);
+      throw error;
     }
-
-    if (!zenUser?.id) {
-      throw new Error('Failed to get or create zen_user for agent');
-    }
-
-    // Start a new session by creating a session activity
-    const { data: session, error: sessionError } = await this.client
-      .from('zen_ticket_activities')
-      .insert({
-        ticket_id: params.ticketId,
-        activity_type: 'ai_session',
-        content: 'AI Outreach Session',
-        created_by: zenUser.id,
-        metadata: {
-          session_type: params.messageType,
-          context: params.context
-        }
-      })
-      .select()
-      .single();
-
-    if (sessionError) throw sessionError;
-
-    // Generate personalized message using NLPService
-    const message = await this.nlpService.generateResponse(
-      this.createOutreachContext(ticket, params.messageType),
-      this.getOutreachPrompt(params.messageType)
-    );
-
-    // Store the outreach message with session reference
-    const { data: outreach, error: messageError } = await this.client
-      .from('zen_ticket_messages')
-      .insert({
-        ticket_id: params.ticketId,
-        content: message,
-        created_by: zenUser.id,
-        source: 'ai',
-        metadata: {
-          message_type: params.messageType,
-          context: params.context,
-          session_id: session.id
-        }
-      })
-      .select()
-      .single();
-
-    if (messageError) throw messageError;
-
-    // Generate and store session summary
-    const summary = await this.nlpService.generateResponse(
-      `Summarize this outreach session:\n\nMessage Type: ${params.messageType}\nContext: ${JSON.stringify(params.context)}\nGenerated Message: ${message}`,
-      'Generate a concise summary of this outreach session'
-    );
-
-    const { error: summaryError } = await this.client
-      .from('zen_ticket_summaries')
-      .insert({
-        ticket_id: params.ticketId,
-        summary,
-        created_by: zenUser.id,
-        created_by_role: 'ai',
-        ai_session_data: {
-          session_type: 'outreach',
-          message_type: params.messageType,
-          context: params.context,
-          generated_message: message
-        }
-      });
-
-    if (summaryError) throw summaryError;
-
-    // Update ticket status if needed
-    if (ticket.status === 'new') {
-      const { error: statusError } = await this.client
-        .from('zen_tickets')
-        .update({ status: 'in_progress' })
-        .eq('id', params.ticketId);
-
-      if (statusError) throw statusError;
-    }
-
-    await this.logAction('GENERATE_OUTREACH', {
-      ticketId: params.ticketId,
-      messageType: params.messageType,
-      outreachId: outreach.id,
-      sessionId: session.id
-    });
-
-    return {
-      message: outreach,
-      session: session,
-      summary
-    };
   }
 
   private async calculateQualificationScore(

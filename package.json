@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "dotenv -e .env.local -- tsx src/app/ai_agents/__tests__/bizdev-agent.test.ts"
+    "test": "dotenv -e .env.local -- tsx src/app/ai_agents/__tests__/bizdev-agent.test.ts",
+    "test:langsmith": "dotenv -e .env.local -- tsx src/app/ai_agents/tests/setup-langsmith-monitoring.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -66,6 +67,7 @@
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
     "langchain": "^0.3.14",
+    "langsmith": "^0.3.4-rc.0",
     "lucide-react": "^0.473.0",
     "mustache": "^4.2.0",
     "nanoid": "^5.0.9",
