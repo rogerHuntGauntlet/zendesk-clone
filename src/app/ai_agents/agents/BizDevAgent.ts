@@ -29,6 +29,61 @@ interface OutreachParams {
   trackingEnabled?: boolean;
 }
 
+interface BatchOutreachParams {
+  projectId: string;
+  messageType: 'initial' | 'followup' | 'proposal' | 'check_in' | 'milestone' | 'urgent';
+  filters?: {
+    status?: string;
+    category?: string;
+    priority?: string;
+    lastContactDays?: number;
+  };
+  context?: {
+    tone?: 'formal' | 'casual' | 'friendly' | 'urgent';
+    customFields?: Record<string, any>;
+  };
+  trackingEnabled?: boolean;
+}
+
+interface TicketMessage {
+  content: string;
+  type: string;
+  metadata?: {
+    effectiveness_score?: number;
+  };
+  created_at: string;
+}
+
+interface TicketActivity {
+  activity_type: string;
+  content: string;
+  created_at: string;
+}
+
+interface TicketSummary {
+  summary: string;
+  ai_session_data: any;
+  created_at: string;
+}
+
+interface BatchGenerationResult {
+  successful: Array<{
+    ticketId: string;
+    message: string;
+    metadata: any;
+  }>;
+  failed: Array<{
+    ticketId: string;
+    error: string;
+  }>;
+  summary: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    averageGenerationTime: number;
+  };
+}
+
 export class BizDevAgent extends BaseAgent {
   private researchService: ResearchService;
   private nlpService: NLPService;
@@ -39,7 +94,10 @@ export class BizDevAgent extends BaseAgent {
     this.nlpService = new NLPService();
   }
 
-  async execute(action: 'research_prospects' | 'generate_outreach', params: ResearchParams | OutreachParams): Promise<any> {
+  async execute(
+    action: 'research_prospects' | 'generate_outreach' | 'batch_generate_outreach',
+    params: ResearchParams | OutreachParams | BatchOutreachParams
+  ): Promise<any> {
     await this.validateAccess();
 
     switch (action) {
@@ -47,6 +105,8 @@ export class BizDevAgent extends BaseAgent {
         return this.researchProspects(params as ResearchParams);
       case 'generate_outreach':
         return this.generateOutreach(params as OutreachParams);
+      case 'batch_generate_outreach':
+        return this.batchGenerateOutreach(params as BatchOutreachParams);
       default:
         throw new Error('Invalid action specified');
     }
@@ -257,10 +317,16 @@ export class BizDevAgent extends BaseAgent {
 
   private async generateOutreach(params: OutreachParams): Promise<any> {
     try {
-      // Get ticket data
+      // Get ticket data with full context
       const { data: ticket } = await this.client
         .from('zen_tickets')
-        .select('*')
+        .select(`
+          *,
+          zen_ticket_activities (*),
+          zen_ticket_messages (*),
+          zen_projects (*),
+          zen_ticket_summaries (*)
+        `)
         .eq('id', params.ticketId)
         .single();
 
@@ -268,30 +334,187 @@ export class BizDevAgent extends BaseAgent {
         throw new Error('Ticket not found');
       }
 
-      // Generate context for the message
-      const context = await this.nlpService.generateResponse(
-        `Ticket: ${JSON.stringify(ticket)}\nPrompt: ${params.context?.customFields?.prompt || ''}`,
-        'Generate a professional outreach message based on this ticket and prompt.'
+      // Analyze past interactions and engagement patterns
+      const pastInteractions = (ticket.zen_ticket_messages || []) as TicketMessage[];
+      const activities = (ticket.zen_ticket_activities || []) as TicketActivity[];
+      const summaries = (ticket.zen_ticket_summaries || []) as TicketSummary[];
+
+      // Generate rich context for the message
+      const context = {
+        ticket,
+        prompt: params.context?.customFields?.prompt || '',
+        pastInteractions: pastInteractions.map((msg: TicketMessage) => ({
+          content: msg.content,
+          type: msg.type,
+          effectiveness: msg.metadata?.effectiveness_score,
+          sentAt: msg.created_at
+        })),
+        activities: activities.map((act: TicketActivity) => ({
+          type: act.activity_type,
+          description: act.content,
+          timestamp: act.created_at
+        })),
+        summaries: summaries.map((sum: TicketSummary) => ({
+          summary: sum.summary,
+          aiData: sum.ai_session_data,
+          createdAt: sum.created_at
+        }))
+      };
+
+      // Generate the message with enhanced context
+      const message = await this.nlpService.generateResponse(
+        JSON.stringify(context),
+        `Generate a ${params.context?.tone || 'professional'} outreach message that considers the full interaction history and current context.`
       );
 
-      // Analyze sentiment and intent
-      const [sentiment, intent] = await Promise.all([
-        this.nlpService.analyzeSentiment(context),
-        this.nlpService.classifyIntent(context)
+      // Analyze message characteristics
+      const [sentiment, intent, keywords] = await Promise.all([
+        this.nlpService.analyzeSentiment(message),
+        this.nlpService.classifyIntent(message),
+        this.nlpService.extractKeywords(message)
       ]);
 
-      // Extract key topics
-      const keywords = await this.nlpService.extractKeywords(context);
+      // Store message metadata for learning
+      const messageMetadata = {
+        sentiment,
+        intent,
+        keywords,
+        generatedAt: new Date().toISOString(),
+        contextSize: JSON.stringify(context).length,
+        prompt: params.context?.customFields?.prompt
+      };
 
-      // Generate the final message
-      const message = await this.nlpService.generateResponse(
-        context,
-        `Generate a ${params.context?.tone || 'professional'} outreach message that addresses: ${keywords.join(', ')}`
-      );
+      // Store the generation attempt for learning
+      await this.client.from('zen_ticket_activities').insert({
+        ticket_id: params.ticketId,
+        activity_type: 'ai_message_generation',
+        content: 'AI generated outreach message',
+        metadata: messageMetadata
+      });
 
-      return { message, metadata: { sentiment, intent, keywords } };
+      return { 
+        message, 
+        metadata: messageMetadata,
+        context: {
+          pastInteractionCount: pastInteractions.length,
+          lastInteraction: pastInteractions[pastInteractions.length - 1]?.created_at,
+          summaryCount: summaries.length
+        }
+      };
     } catch (error) {
       console.error('Error in generateOutreach:', error);
+      throw error;
+    }
+  }
+
+  private async batchGenerateOutreach(params: BatchOutreachParams): Promise<BatchGenerationResult> {
+    const startTime = Date.now();
+    const result: BatchGenerationResult = {
+      successful: [],
+      failed: [],
+      summary: {
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        averageGenerationTime: 0
+      }
+    };
+
+    try {
+      // Build query for tickets
+      let query = this.client
+        .from('zen_tickets')
+        .select('*')
+        .eq('project_id', params.projectId);
+
+      // Apply filters
+      if (params.filters) {
+        if (params.filters.status) {
+          query = query.eq('status', params.filters.status);
+        }
+        if (params.filters.category) {
+          query = query.eq('category', params.filters.category);
+        }
+        if (params.filters.priority) {
+          query = query.eq('priority', params.filters.priority);
+        }
+        if (params.filters.lastContactDays) {
+          const cutoffDate = new Date();
+          cutoffDate.setDate(cutoffDate.getDate() - params.filters.lastContactDays);
+          query = query.lt('last_contact_at', cutoffDate.toISOString());
+        }
+      }
+
+      const { data: tickets, error } = await query;
+
+      if (error) throw error;
+      if (!tickets || tickets.length === 0) {
+        return {
+          ...result,
+          summary: { ...result.summary, total: 0 }
+        };
+      }
+
+      // Process tickets in parallel with rate limiting
+      const batchSize = 3; // Process 3 tickets at a time
+      for (let i = 0; i < tickets.length; i += batchSize) {
+        const batch = tickets.slice(i, i + batchSize);
+        const batchPromises = batch.map(async (ticket) => {
+          try {
+            const outreachResult = await this.generateOutreach({
+              ticketId: ticket.id,
+              messageType: params.messageType,
+              context: params.context,
+              trackingEnabled: params.trackingEnabled
+            });
+
+            result.successful.push({
+              ticketId: ticket.id,
+              message: outreachResult.message,
+              metadata: outreachResult.metadata
+            });
+
+            return true;
+          } catch (error) {
+            result.failed.push({
+              ticketId: ticket.id,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            return false;
+          }
+        });
+
+        await Promise.all(batchPromises);
+
+        // Add a small delay between batches to prevent rate limiting
+        if (i + batchSize < tickets.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Calculate summary
+      const endTime = Date.now();
+      result.summary = {
+        total: tickets.length,
+        succeeded: result.successful.length,
+        failed: result.failed.length,
+        averageGenerationTime: (endTime - startTime) / tickets.length
+      };
+
+      // Log batch generation metrics
+      await this.logAction('BATCH_OUTREACH_GENERATION', {
+        projectId: params.projectId,
+        totalTickets: tickets.length,
+        successCount: result.successful.length,
+        failureCount: result.failed.length,
+        averageGenerationTime: result.summary.averageGenerationTime,
+        filters: params.filters
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('Error in batchGenerateOutreach:', error);
       throw error;
     }
   }
