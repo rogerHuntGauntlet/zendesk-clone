@@ -203,7 +203,18 @@ Notes: ${contact.notes || 'No notes'}`,
             priority: 'medium',
             category: 'prospect',
             client: user.id,
-            created_by: currentUser.id
+            created_by: currentUser.id,
+            metadata: {
+              prospect_data: {
+                name: contact.name,
+                company: contact.company,
+                email: contact.email,
+                role: contact.product, // Using product as role for now
+                notes: contact.notes,
+                phone: undefined,
+                linkedin: undefined
+              }
+            }
           })
           .select()
           .single();

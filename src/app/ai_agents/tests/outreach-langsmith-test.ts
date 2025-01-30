@@ -9,6 +9,7 @@ config({ path: path.resolve(process.cwd(), '.env.local') });
 import { ChatOpenAI } from "@langchain/openai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { LLMChain } from "langchain/chains";
+import { EnhancedOutreachService } from '../services/EnhancedOutreachService';
 
 // Configure environment for Outreach project
 const OUTREACH_PROJECT_NAME = "outreach-crm-ai";  // Explicitly set project name
@@ -30,86 +31,82 @@ console.log("LANGSMITH_ENDPOINT:", process.env.LANGSMITH_ENDPOINT);
 console.log("LANGSMITH_API_KEY:", process.env.LANGSMITH_API_KEY?.slice(0, 10) + "...");
 console.log("LANGSMITH_PROJECT:", process.env.LANGSMITH_PROJECT);
 
-export async function testOutreachLangsmith() {
-  try {
-    console.log("Starting Outreach Langsmith test...");
-    console.log("Project:", OUTREACH_PROJECT_NAME);
-    
-    // Verify project exists or create it
-    try {
-      await client.readProject({ projectName: OUTREACH_PROJECT_NAME });
-      console.log("Project exists:", OUTREACH_PROJECT_NAME);
-    } catch (e) {
-      console.log("Creating project:", OUTREACH_PROJECT_NAME);
-      await client.createProject({ projectName: OUTREACH_PROJECT_NAME });
+export async function testOutreachSystem() {
+  console.log("Starting Enhanced Outreach System Test...");
+  
+  const outreachService = new EnhancedOutreachService();
+
+  // Test Cases for Different Scenarios
+  const testCases = [
+    {
+      name: "Initial Contact - High Interest Prospect",
+      type: "initial",
+      content: "I noticed your recent achievements in AI development. Would love to discuss how our platform could help scale your efforts."
+    },
+    {
+      name: "Follow-up - Medium Interest Prospect",
+      type: "followup",
+      content: "Following up on our previous conversation about AI development tools. Have you had a chance to review our documentation?"
+    },
+    {
+      name: "Final Outreach - Low Interest Prospect",
+      type: "final",
+      content: "Just wanted to reach out one last time about our AI development platform. Our offer for a free trial is still available."
     }
+  ];
 
-    // Create a simple chain
-    const model = new ChatOpenAI({
-      temperature: 0.7,
-      modelName: "gpt-4",
-      openAIApiKey: process.env.OPENAI_API_KEY
-    });
+  // Run test cases and collect metrics
+  const results = [];
+  for (const testCase of testCases) {
+    console.log(`Running test case: ${testCase.name}`);
 
-    const prompt = PromptTemplate.fromTemplate(
-      "Write a one sentence test message to {name}."
+    // Generate and track message
+    const result = await outreachService.generateAndTrackMessage(
+      'test-prospect-' + Math.random(),
+      testCase.type,
+      testCase.content
     );
 
-    const chain = new LLMChain({
-      llm: model,
-      prompt,
-      verbose: true,
-      callbacks: [
-        new LangChainTracer({
-          projectName: OUTREACH_PROJECT_NAME,
-        }),
-        {
-          handleLLMStart: () => {
-            console.log("LLM started with tracing enabled");
-            console.log("Current project:", OUTREACH_PROJECT_NAME);
-          }
-        }
-      ],
-      tags: ["test", "outreach"],
-    });
-
-    // Run the chain
-    console.log("Running test chain...");
-    const result = await chain.call(
-      {
-        name: "Test Prospect",
-      },
-      {
-        tags: ["test-run"],
-        metadata: { projectName: OUTREACH_PROJECT_NAME }
-      }
-    );
-
-    console.log("Test completed successfully!");
-    console.log("Result:", result);
-    return {
-      success: true,
+    results.push({
+      testCase,
       result
-    };
+    });
 
-  } catch (error) {
-    console.error("Outreach Langsmith test failed:", error);
-    return {
-      success: false,
-      error
-    };
+    // Add some delay between tests
+    await new Promise(resolve => setTimeout(resolve, 1000));
   }
+
+  // Analyze overall performance
+  const learnings = await outreachService.analyzeLearnings();
+
+  // Log final results to LangSmith
+  await client.createRun({
+    name: "outreach_system_test",
+    project_name: OUTREACH_PROJECT_NAME,
+    inputs: {
+      testCases: testCases.map(t => t.name)
+    },
+    outputs: {
+      results,
+      learnings,
+      overallSuccess: learnings.effectiveness > 0.5
+    }
+  });
+
+  return {
+    results,
+    learnings
+  };
 }
 
-// Run test if file is executed directly
+// Run the test if called directly
 if (require.main === module) {
-  testOutreachLangsmith()
-    .then((result) => {
-      console.log("Test execution completed:", result);
-      process.exit(result.success ? 0 : 1);
+  testOutreachSystem()
+    .then(results => {
+      console.log("Test Results:", JSON.stringify(results, null, 2));
     })
-    .catch((error) => {
-      console.error("Test execution failed:", error);
+    .catch(error => {
+      console.error("Test Error:", error);
       process.exit(1);
     });
 } 

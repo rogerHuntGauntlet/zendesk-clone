@@ -24,10 +24,24 @@ export class AIServiceConfig {
       process.env.LANGCHAIN_PROJECT = "zendesk-clone-test";
     }
 
-    // Initialize LangSmith client
+    // Initialize LangSmith client with outreach-specific key
+    const langSmithApiKey = process.env.LANGSMITH_API_KEY_OUTREACH || 
+                           process.env.NEXT_PUBLIC_LANGSMITH_API_KEY_OUTREACH ||
+                           process.env.LANGSMITH_API_KEY ||
+                           process.env.LANGCHAIN_API_KEY;
+
+    if (!langSmithApiKey) {
+      throw new Error('LangSmith API key is not configured. Please add LANGSMITH_API_KEY_OUTREACH to your environment variables.');
+    }
+
+    // Set up LangSmith client
     this.langSmithClient = new Client({
-      apiKey: process.env.LANGSMITH_API_KEY || process.env.LANGCHAIN_API_KEY,
+      apiKey: langSmithApiKey,
+      apiUrl: process.env.LANGSMITH_ENDPOINT_OUTREACH || "https://api.smith.langchain.com"
     });
+
+    // Set project name for tracing
+    process.env.LANGSMITH_PROJECT = process.env.LANGSMITH_PROJECT_OUTREACH || "outreach-crm-ai";
 
     // Initialize OpenAI with tracing enabled
     this.openAIModel = new ChatOpenAI({
@@ -54,9 +68,6 @@ export class AIServiceConfig {
     if (!AIServiceConfig.instance) {
       if (!process.env.NEXT_PUBLIC_PINECONE_API_KEY) {
         throw new Error('Pinecone API key is not configured. Please add NEXT_PUBLIC_PINECONE_API_KEY to your environment variables.');
-      }
-      if (!process.env.LANGSMITH_API_KEY) {
-        throw new Error('LangSmith API key is not configured. Please add LANGSMITH_API_KEY to your environment variables.');
       }
       AIServiceConfig.instance = new AIServiceConfig();
     }
