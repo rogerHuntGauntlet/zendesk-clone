@@ -119,7 +119,15 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
     status: 'pending' | 'in_progress' | 'completed';
     startTime?: number;
     endTime?: number;
+    error?: string;
   }>>([]);
+  const [selectedStep, setSelectedStep] = useState<string | null>(null);
+  const [stepDetails, setStepDetails] = useState<{
+    research?: any;
+    history?: any;
+    analysis?: any;
+    error?: string;
+  } | null>(null);
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.title.toLowerCase().includes(ticketSearch.toLowerCase()) ||
@@ -343,10 +351,15 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
   const handleGenerateEmail = async (ticket: Ticket) => {
     setIsGeneratingEmail(true);
     setGeneratedEmail(null);
+    setSelectedTicket(ticket);
     setShowOutreachModal(true);
+    setSelectedStep(null);
+    setStepDetails(null);
     
     // Initialize steps
     setGenerationSteps([
+      { taskName: 'Running Web Research', status: 'pending' },
+      { taskName: 'Reviewing Ticket History', status: 'pending' },
       { taskName: 'Initializing Request', status: 'pending' },
       { taskName: 'Analyzing Ticket Context', status: 'pending' },
       { taskName: 'Generating Message', status: 'pending' },
@@ -354,7 +367,111 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
     ]);
 
     try {
-      // Step 1: Initialize
+      // Step 1: Web Research
+      setGenerationSteps(prev => prev.map(step => 
+        step.taskName === 'Running Web Research'
+          ? { ...step, status: 'in_progress', startTime: Date.now() }
+          : step
+      ));
+
+      let research = null;
+      try {
+        const researchResponse = await fetch('/api/outreach/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket })
+        });
+
+        const researchData = await researchResponse.json();
+        
+        if (researchData.status === 'completed') {
+          research = researchData.research;
+          setGenerationSteps(prev => prev.map(step => 
+            step.taskName === 'Running Web Research'
+              ? { ...step, status: 'completed', endTime: Date.now() }
+              : step
+          ));
+          setStepDetails(prev => ({ ...prev, research: researchData.research }));
+        } else {
+          console.warn('Web research skipped or failed:', researchData.message);
+          setGenerationSteps(prev => prev.map(step => 
+            step.taskName === 'Running Web Research'
+              ? { 
+                  ...step, 
+                  status: 'completed', 
+                  endTime: Date.now(),
+                  error: researchData.message || 'Web research unavailable'
+                }
+              : step
+          ));
+        }
+      } catch (error) {
+        console.warn('Web research failed:', error);
+        setGenerationSteps(prev => prev.map(step => 
+          step.taskName === 'Running Web Research'
+            ? { 
+                ...step, 
+                status: 'completed', 
+                endTime: Date.now(),
+                error: 'Web research unavailable'
+              }
+            : step
+        ));
+      }
+
+      // Step 2: Ticket History Review
+      setGenerationSteps(prev => prev.map(step => 
+        step.taskName === 'Reviewing Ticket History'
+          ? { ...step, status: 'in_progress', startTime: Date.now() }
+          : step
+      ));
+
+      let ticketHistory = null;
+      try {
+        const historyResponse = await fetch('/api/outreach/ticket-history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket })
+        });
+
+        const historyData = await historyResponse.json();
+        
+        if (historyData.status === 'completed') {
+          ticketHistory = historyData.history;
+          setGenerationSteps(prev => prev.map(step => 
+            step.taskName === 'Reviewing Ticket History'
+              ? { ...step, status: 'completed', endTime: Date.now() }
+              : step
+          ));
+          setStepDetails(prev => ({ ...prev, history: historyData.history }));
+        } else {
+          console.warn('Ticket history review skipped or failed:', historyData.message);
+          setGenerationSteps(prev => prev.map(step => 
+            step.taskName === 'Reviewing Ticket History'
+              ? { 
+                  ...step, 
+                  status: 'completed', 
+                  endTime: Date.now(),
+                  error: historyData.message || 'History review unavailable'
+                }
+              : step
+          ));
+        }
+      } catch (error) {
+        console.warn('Ticket history review failed:', error);
+        setGenerationSteps(prev => prev.map(step => 
+          step.taskName === 'Reviewing Ticket History'
+            ? { 
+                ...step, 
+                status: 'completed', 
+                endTime: Date.now(),
+                error: 'History review unavailable'
+              }
+            : step
+        ));
+      }
+
+      // Step 3: Initialize
       setGenerationSteps(prev => prev.map(step => 
         step.taskName === 'Initializing Request' 
           ? { ...step, status: 'in_progress', startTime: Date.now() }
@@ -368,7 +485,7 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
           : step
       ));
 
-      // Step 2: Analyze Context
+      // Step 4: Analyze Context
       setGenerationSteps(prev => prev.map(step => 
         step.taskName === 'Analyzing Ticket Context'
           ? { ...step, status: 'in_progress', startTime: Date.now() }
@@ -378,7 +495,7 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
       const analysisResponse = await fetch('/api/outreach/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticket })
+        body: JSON.stringify({ ticket, research, ticketHistory })
       });
 
       if (!analysisResponse.ok) {
@@ -392,8 +509,9 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
           ? { ...step, status: 'completed', endTime: Date.now() }
           : step
       ));
+      setStepDetails(prev => ({ ...prev, analysis }));
 
-      // Step 3: Generate Message
+      // Step 5: Generate Message
       setGenerationSteps(prev => prev.map(step => 
         step.taskName === 'Generating Message'
           ? { ...step, status: 'in_progress', startTime: Date.now() }
@@ -465,7 +583,7 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
         reader.releaseLock();
       }
 
-      // Step 4: Finalize
+      // Step 6: Finalize
       setGenerationSteps(prev => prev.map(step => 
         step.taskName === 'Finalizing Response'
           ? { ...step, status: 'in_progress', startTime: Date.now() }
@@ -634,6 +752,105 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
     </div>
   );
 
+  const renderStepDetails = () => {
+    if (!stepDetails) return <div className="text-white/60">No details available for this step.</div>;
+
+    switch (selectedStep) {
+      case 'Running Web Research':
+        return stepDetails.research ? (
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">Search Query</h4>
+              <p className="text-white/60">{stepDetails.research.searchQuery}</p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Sources Found</h4>
+              <ul className="space-y-2">
+                {stepDetails.research.prospect.sources.map((source: any, index: number) => (
+                  <li key={index} className="text-white/60">
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" 
+                       className="text-violet-400 hover:text-violet-300">
+                      {source.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Background Information</h4>
+              <p className="text-white/60 whitespace-pre-wrap">
+                {stepDetails.research.prospect.background}
+              </p>
+            </div>
+          </div>
+        ) : null;
+
+      case 'Reviewing Ticket History':
+        return stepDetails.history ? (
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">Interaction Summary</h4>
+              <div className="grid grid-cols-2 gap-4 text-white/60">
+                <div>Total Sessions: {stepDetails.history.insights.totalSessions}</div>
+                <div>Last Interaction: {new Date(stepDetails.history.insights.lastInteractionDate).toLocaleDateString()}</div>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Common Activities</h4>
+              <ul className="space-y-1">
+                {stepDetails.history.insights.commonActivities.map((activity: any, index: number) => (
+                  <li key={index} className="text-white/60">
+                    {activity.type}: {activity.count} times
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Recent Sessions</h4>
+              <div className="space-y-3">
+                {stepDetails.history.sessions.map((session: any) => (
+                  <div key={session.id} className="bg-white/5 p-3 rounded">
+                    <div className="text-white/80 mb-1">
+                      {new Date(session.created_at).toLocaleDateString()}
+                    </div>
+                    <p className="text-white/60">{session.summary}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null;
+
+      case 'Analyzing Ticket Context':
+        return stepDetails.analysis ? (
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-medium mb-2">Prospect Information</h4>
+              <div className="grid grid-cols-2 gap-2 text-white/60">
+                <div>Role: {stepDetails.analysis.prospectInfo.role}</div>
+                <div>Company: {stepDetails.analysis.prospectInfo.company}</div>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Key Points</h4>
+              <ul className="list-disc pl-4 space-y-1">
+                {stepDetails.analysis.keyPoints.map((point: string, index: number) => (
+                  <li key={index} className="text-white/60">{point}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium mb-2">Suggested Approach</h4>
+              <p className="text-white/60">{stepDetails.analysis.suggestedApproach}</p>
+            </div>
+          </div>
+        ) : null;
+
+      default:
+        return <div className="text-white/60">No details available for this step.</div>;
+    }
+  };
+
   return (
     <>
       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
@@ -699,7 +916,7 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
       {/* Outreach Modal */}
       {showOutreachModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-start justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-gray-900 rounded-lg w-full max-w-2xl mx-4 my-8">
+          <div className="bg-gray-900 rounded-lg w-full max-w-5xl mx-4 my-8">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-semibold text-white">
@@ -710,6 +927,8 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
                     setShowOutreachModal(false);
                     setGeneratedEmail(null);
                     setGenerationSteps([]);
+                    setSelectedStep(null);
+                    setStepDetails(null);
                   }}
                   className="text-white/60 hover:text-white"
                 >
@@ -717,73 +936,151 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
                 </button>
               </div>
 
-              {/* Progress Tracker */}
-              <div className="mb-6 space-y-4">
-                {generationSteps.map((step, index) => (
-                  <div key={step.taskName} className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-6 h-6 rounded-full flex items-center justify-center",
-                      step.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                      step.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                      'bg-gray-500/20 text-gray-400'
-                    )}>
-                      {step.status === 'completed' ? (
-                        <CheckIcon className="w-4 h-4" />
-                      ) : step.status === 'in_progress' ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CircleIcon className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">{step.taskName}</div>
-                      {step.startTime && (
-                        <div className="text-xs text-white/60">
-                          {step.endTime 
-                            ? `Completed in ${((step.endTime - step.startTime) / 1000).toFixed(2)}s`
-                            : 'In progress...'}
-                        </div>
+              {/* Prospect Info Section */}
+              <div className="mb-6 bg-white/5 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-white/80 mb-2">Prospect Information</h4>
+                    <div className="space-y-1">
+                      <p className="text-sm text-white/60">
+                        <span className="font-medium text-white/80">Title:</span>{' '}
+                        {selectedTicket?.title}
+                      </p>
+                      <p className="text-sm text-white/60">
+                        <span className="font-medium text-white/80">Priority:</span>{' '}
+                        {selectedTicket?.priority}
+                      </p>
+                      {selectedTicket?.assignee && (
+                        <p className="text-sm text-white/60">
+                          <span className="font-medium text-white/80">Contact:</span>{' '}
+                          {selectedTicket.assignee.name}
+                        </p>
                       )}
                     </div>
                   </div>
-                ))}
+                  <div>
+                    <h4 className="text-sm font-medium text-white/80 mb-2">Context</h4>
+                    <div className="text-sm text-white/60 line-clamp-4">
+                      {selectedTicket?.description}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Generated Email Content */}
-              {generatedEmail && (
-                <>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="whitespace-pre-wrap text-white/90">
-                      {generatedEmail}
-                    </div>
+              <div className="flex gap-6">
+                {/* Left side: Email Content */}
+                <div className="flex-1">
+                  <div className="bg-white/5 rounded-lg p-4 h-[500px] overflow-y-auto">
+                    {selectedStep ? (
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-medium text-white">
+                            {selectedStep} Details
+                          </h3>
+                          <button
+                            onClick={() => setSelectedStep(null)}
+                            className="text-white/60 hover:text-white"
+                          >
+                            <XMarkIcon className="w-5 h-5" />
+                          </button>
+                        </div>
+                        {renderStepDetails()}
+                      </div>
+                    ) : generatedEmail ? (
+                      <div className="whitespace-pre-wrap text-white/90">
+                        {generatedEmail}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-white/60">
+                        <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                        Generating email...
+                      </div>
+                    )}
                   </div>
 
-                  <div className="mt-6 flex justify-end gap-3">
-                    <Button
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedEmail);
-                        toast({
-                          title: "Copied!",
-                          description: "Email copied to clipboard",
-                        });
-                      }}
-                      className="bg-violet-600 hover:bg-violet-700"
-                    >
-                      Copy to Clipboard
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowOutreachModal(false);
-                        setGeneratedEmail(null);
-                        setGenerationSteps([]);
-                      }}
-                    >
-                      Close
-                    </Button>
+                  {generatedEmail && !selectedStep && (
+                    <div className="mt-6 flex justify-end gap-3">
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedEmail);
+                          toast({
+                            title: "Copied!",
+                            description: "Email copied to clipboard",
+                          });
+                        }}
+                        className="bg-violet-600 hover:bg-violet-700"
+                      >
+                        Copy to Clipboard
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowOutreachModal(false);
+                          setGeneratedEmail(null);
+                          setGenerationSteps([]);
+                          setSelectedStep(null);
+                          setStepDetails(null);
+                        }}
+                      >
+                        Close
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right side: Progress Steps */}
+                <div className="w-80">
+                  <div className="bg-white/5 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-white/80 mb-4">Generation Progress</h4>
+                    <div className="space-y-4">
+                      {generationSteps.map((step, index) => (
+                        <button
+                          key={step.taskName}
+                          onClick={() => {
+                            if (step.status === 'completed') {
+                              setSelectedStep(step.taskName);
+                            }
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-3 p-2 rounded transition-colors",
+                            step.status === 'completed' && "hover:bg-white/5 cursor-pointer"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center",
+                            step.status === 'completed' && !step.error ? 'bg-green-500/20 text-green-400' :
+                            step.status === 'completed' && step.error ? 'bg-yellow-500/20 text-yellow-400' :
+                            step.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          )}>
+                            {step.status === 'completed' && !step.error ? (
+                              <CheckIcon className="w-4 h-4" />
+                            ) : step.status === 'completed' && step.error ? (
+                              <XMarkIcon className="w-4 h-4" />
+                            ) : step.status === 'in_progress' ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <CircleIcon className="w-4 h-4" />
+                            )}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="text-sm font-medium text-white">{step.taskName}</div>
+                            {step.error ? (
+                              <div className="text-xs text-yellow-400">{step.error}</div>
+                            ) : step.startTime && (
+                              <div className="text-xs text-white/60">
+                                {step.endTime 
+                                  ? `Completed in ${((step.endTime - step.startTime) / 1000).toFixed(2)}s`
+                                  : 'In progress...'}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

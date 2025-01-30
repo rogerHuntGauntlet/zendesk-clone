@@ -352,21 +352,36 @@ export async function POST(req: Request) {
     const { analysis } = await req.json();
     console.log('🤖 Generating email with analysis:', analysis);
 
-    const prompt = `Write a professional and engaging email based on the following analysis:
+    const prompt = `Write a professional and engaging email to ${analysis.prospectInfo.name} based on the following analysis:
 
-Industry: ${analysis.industry}
-Key Points: ${analysis.keyPoints.join(', ')}
+Prospect Information:
+- Name: ${analysis.prospectInfo.name}
+- Role: ${analysis.prospectInfo.role}
+- Company: ${analysis.prospectInfo.company}
+
+Company Details:
+- Industry: ${analysis.companyInfo.industry}
+- Size: ${analysis.companyInfo.size}
+- Tech Stack: ${analysis.companyInfo.techStack.join(', ')}
+
+Areas of Interest: ${analysis.interests.join(', ')}
+
+Key Points to Address:
+${analysis.keyPoints.map(point => `- ${point}`).join('\n')}
+
 Suggested Approach: ${analysis.suggestedApproach}
-Priority: ${analysis.priority}
+Priority Level: ${analysis.priority}
 
 The email should:
-1. Be professional and courteous
-2. Reference specific details from the analysis
-3. Demonstrate understanding of their industry and needs
-4. Include a clear call to action
-5. Be concise and direct
+1. Address the prospect by name and reference their role/company
+2. Demonstrate understanding of their industry and specific business context
+3. Reference relevant points from their tech stack and interests
+4. Address key points from the analysis
+5. Follow the suggested approach
+6. Include a clear, contextual call to action
+7. Be concise yet personalized
 
-Write only the email content, no subject line needed.`;
+Write only the email content, no subject line needed. Make it feel personal and tailored specifically to ${analysis.prospectInfo.name} at ${analysis.prospectInfo.company}.`;
 
     // Create the stream response
     const stream = new ReadableStream({
