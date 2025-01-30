@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { Client } from "langsmith";
+import { Client, Run } from "langsmith";
 import { LangChainTracer } from "langchain/callbacks";
 import { ChatOpenAI } from "@langchain/openai";
 import { PromptTemplate } from "@langchain/core/prompts";
@@ -7,7 +7,6 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { EnhancedOutreachService } from '@/app/ai_agents/services/EnhancedOutreachService';
 import { OpenAI } from 'openai';
-import { Run, RunParams } from "langsmith";
 
 // Add these interfaces at the top of the file after the imports
 interface MessageAnalysisScores {
@@ -40,6 +39,18 @@ interface PerformanceResult<T> {
 interface PerformanceError {
   error: Error;
   duration: number;
+}
+
+interface RunUpdate {
+  end_time?: number;
+  error?: string;
+  outputs?: Record<string, unknown>;
+  child_runs?: Array<{
+    name: string;
+    run_type: string;
+    inputs: Record<string, unknown>;
+    start_time: number;
+  }>;
 }
 
 const OUTREACH_PROJECT_NAME = process.env.LANGSMITH_PROJECT_OUTREACH || "outreach-crm-ai";
@@ -366,7 +377,7 @@ export async function POST(req: Request) {
     console.log('🤖 Generating email with analysis:', analysis);
 
     // Start LangSmith run
-    const runParams: RunParams = {
+    const runParams = {
       name: "Generate Email",
       run_type: "chain",
       project_name: OUTREACH_PROJECT_NAME,
@@ -387,10 +398,17 @@ Company Details:
 - Size: ${analysis.companyInfo.size}
 - Tech Stack: ${analysis.companyInfo.techStack.join(', ')}
 
+Project Context:
+- Project: ${analysis.projectContext.title}
+- Description: ${analysis.projectContext.description}
+- Priority: ${analysis.projectContext.priority}
+- Category: ${analysis.projectContext.category}
+- Status: ${analysis.projectContext.status}
+
 Areas of Interest: ${analysis.interests.join(', ')}
 
 Key Points to Address:
-${analysis.keyPoints.map(point => `- ${point}`).join('\n')}
+${analysis.keyPoints.map((point: string) => `- ${point}`).join('\n')}
 
 Suggested Approach: ${analysis.suggestedApproach}
 Priority Level: ${analysis.priority}
@@ -398,13 +416,14 @@ Priority Level: ${analysis.priority}
 The email should:
 1. Address the prospect by name and reference their role/company
 2. Demonstrate understanding of their industry and specific business context
-3. Reference relevant points from their tech stack and interests
-4. Address key points from the analysis
-5. Follow the suggested approach
-6. Include a clear, contextual call to action
-7. Be concise yet personalized
+3. Reference the project details and how they relate to the prospect's needs
+4. Reference relevant points from their tech stack and interests
+5. Address key points from the analysis
+6. Follow the suggested approach
+7. Include a clear, contextual call to action that ties back to the project
+8. Be concise yet personalized
 
-Write only the email content, no subject line needed. Make it feel personal and tailored specifically to ${analysis.prospectInfo.name} at ${analysis.prospectInfo.company}.`;
+Write only the email content, no subject line needed. Make it feel personal and tailored specifically to ${analysis.prospectInfo.name} at ${analysis.prospectInfo.company}, focusing on how our project/service can address their specific needs.`;
 
     // Create the stream response
     const stream = new ReadableStream({

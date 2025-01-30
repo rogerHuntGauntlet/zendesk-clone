@@ -12,6 +12,7 @@ interface Contact {
   company: string;
   notes?: string;
   product: string;
+  industry?: string;
 }
 
 interface ProcessingStep {
@@ -38,7 +39,8 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
     email: '',
     company: '',
     notes: '',
-    product: ''
+    product: '',
+    industry: ''
   });
 
   useEffect(() => {
@@ -86,7 +88,8 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
               email: row[1].trim(),
               company: row[2].trim(),
               product: row[3].trim(),
-              notes: row[4]?.trim()
+              notes: row[4]?.trim(),
+              industry: row[5]?.trim()
             });
           }
         }
@@ -112,7 +115,7 @@ export default function BizDevContacts({ projectId, onContactsProcessed }: BizDe
     setProcessingStatus('Starting contact processing...');
     try {
       await processContacts([newContact]);
-      setNewContact({ name: '', email: '', company: '', notes: '', product: '' });
+      setNewContact({ name: '', email: '', company: '', notes: '', product: '', industry: '' });
       setShowContactForm(false);
       toast.success('Contact added successfully');
     } catch (error) {
@@ -211,6 +214,7 @@ Notes: ${contact.notes || 'No notes'}`,
                 email: contact.email,
                 role: contact.product, // Using product as role for now
                 notes: contact.notes,
+                industry: contact.industry,
                 phone: undefined,
                 linkedin: undefined
               }
@@ -236,6 +240,7 @@ Notes: ${contact.notes || 'No notes'}`,
               company: contact.company,
               product: contact.product,
               notes: contact.notes,
+              industry: contact.industry,
               projectId
             }
           });
@@ -398,8 +403,8 @@ Notes: ${contact.notes || 'No notes'}`,
       )}
 
       <div className="mt-4 text-sm text-white/60">
-        <p>CSV format: name, email, company, product/service, notes (optional)</p>
-        <p>Example: John Doe, john@company.com, Acme Inc., Enterprise Software License, Met at conference</p>
+        <p>CSV format: name, email, company, product/service, notes (optional), industry (optional)</p>
+        <p>Example: John Doe, john@company.com, Acme Inc., Enterprise Software License, Met at conference, Technology</p>
       </div>
     </div>
   );

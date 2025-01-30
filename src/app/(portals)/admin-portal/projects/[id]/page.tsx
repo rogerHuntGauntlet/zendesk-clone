@@ -22,7 +22,7 @@ import { AgentFactory } from '@/app/ai_agents/core/AgentFactory';
 import TicketList from '../../components/ui/TicketList';
 import { NewTicketModal } from '../../../client-portal/components/ui/new-ticket-modal';
 import TeamActivityFeed from '../../components/ui/project-detail/TeamActivityFeed';
-import AIMonitoringDashboard from '../../components/ui/project-detail/AIMonitoringDashboard';
+//import AIMonitoringDashboard from '../../components/ui/project-detail/AIMonitoringDashboard';
 
 // Types
 interface Project {
@@ -720,11 +720,45 @@ export default function ProjectDetailPage() {
 
   const handleCreateTicket = async (ticketData: any) => {
     try {
+      // First check if user exists in zen_clients
+      const { data: clientData, error: clientCheckError } = await supabase
+        .from('zen_clients')
+        .select('*')
+        .eq('user_id', ticketData.created_by)
+        .single();
+
+      if (!clientData) {
+        // Get user's email to extract company name
+        const { data: userData, error: userError } = await supabase
+          .from('zen_users')
+          .select('email')
+          .eq('id', ticketData.created_by)
+          .single();
+
+        if (userError) throw userError;
+
+        // Extract company name from email domain
+        const companyName = userData?.email ? userData.email.split('@')[1].split('.')[0] : 'Default Company';
+
+        // Create a client entry if it doesn't exist
+        const { error: createClientError } = await supabase
+          .from('zen_clients')
+          .insert([{
+            user_id: ticketData.created_by,
+            company: companyName.charAt(0).toUpperCase() + companyName.slice(1)
+          }]);
+
+        if (createClientError) throw createClientError;
+      }
+
+      // Now create the ticket
       const { error } = await supabase
         .from('zen_tickets')
         .insert([{
           ...ticketData,
-          project_id: params.id
+          project_id: params.id,
+          client: ticketData.created_by,
+          category: 'general' // Adding default category
         }]);
 
       if (error) throw error;
@@ -1019,7 +1053,7 @@ export default function ProjectDetailPage() {
 
         {activeTab === 'monitoring' && (
           <div className="space-y-8">
-            <AIMonitoringDashboard projectId={project.id} />
+         
           </div>
         )}
 
@@ -1074,6 +1108,7 @@ export default function ProjectDetailPage() {
         projectId={params.id as string}
         projectName={project.name}
         userRole={user?.user_metadata?.role || 'employee'}
+        userId={user?.id}
         onSubmit={handleCreateTicket}
       />
 

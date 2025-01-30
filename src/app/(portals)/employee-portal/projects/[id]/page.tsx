@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { createClient } from '../../lib/supabase';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { toast } from 'sonner';
 import { ChevronDownIcon, ChevronUpIcon, Squares2X2Icon as ViewGridIcon, ListBulletIcon as ViewListIcon, TableCellsIcon as ViewBoardsIcon } from '@heroicons/react/24/outline';
 import { DragDropContext, Draggable, DropResult } from 'react-beautiful-dnd';
@@ -126,7 +126,8 @@ interface TicketFilters {
   };
 }
 
-const supabase = createClient();
+const supabase = createClientComponentClient();
+const user = useUser();
 
 const getPriorityColor = (priority: Priority) => {
   switch (priority) {
@@ -262,7 +263,6 @@ const ProjectDetailPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('priority-desc');
   const [subscription, setSubscription] = useState<RealtimeChannel | null>(null);
-  const user = useUser();
   const [showTeamNotes, setShowTeamNotes] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('tickets');
   const [isNewTicketModalOpen, setIsNewTicketModalOpen] = useState(false);
@@ -301,23 +301,11 @@ const ProjectDetailPage = () => {
   }, [tickets]);
 
   useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error('Error getting current user:', error);
-        return;
-      }
+    if (user) {
       setCurrentUser(user);
-    };
-
-    getCurrentUser();
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
       fetchProjectData();
     }
-  }, [params.id, currentUser]);
+  }, [params.id, user]);
 
   // Add filter effect
   useEffect(() => {
@@ -1257,9 +1245,10 @@ const ProjectDetailPage = () => {
         <NewTicketModal
           isOpen={isNewTicketModalOpen}
           onClose={() => setIsNewTicketModalOpen(false)}
-          projectId={project.id}
-          projectName={project.name}
+          projectId={params.id}
+          projectName={project?.name || ''}
           userRole="employee"
+          userId={user?.id || ''}
           onSubmit={async (ticketData) => {
             try {
               const { data, error } = await supabase

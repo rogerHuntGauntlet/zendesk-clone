@@ -21,6 +21,7 @@ interface NewTicketModalProps {
   projectId: string;
   projectName: string;
   userRole: string;
+  userId: string;
   onSubmit: (ticketData: TicketData) => Promise<void>;
 }
 
@@ -30,7 +31,7 @@ interface TicketData {
   priority: string;
   project_id: string;
   status: string;
-  attachments?: string[];
+  created_by: string;
 }
 
 interface ChatMessage {
@@ -42,7 +43,7 @@ interface ChatMessage {
   isTyping?: boolean;
 }
 
-export function NewTicketModal({ isOpen, onClose, projectId, projectName, userRole, onSubmit }: NewTicketModalProps) {
+export function NewTicketModal({ isOpen, onClose, projectId, projectName, userRole, userId, onSubmit }: NewTicketModalProps) {
   const [isManualMode, setIsManualMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -736,7 +737,7 @@ export function NewTicketModal({ isOpen, onClose, projectId, projectName, userRo
         priority: priority || 'medium',
         project_id: projectId,
         status: "new",
-        attachments: uploadedImages
+        created_by: userId
       });
       onClose();
     } catch (error) {

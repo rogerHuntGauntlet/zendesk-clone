@@ -645,8 +645,8 @@ Previous Messages: ${previousMessages}`;
       : 0.5;
   }
 
-  private scoreIndustryFit(industry?: string): number {
-    if (!industry) return 0.5;
+  private scoreIndustryFit(industry?: string | null): number {
+    if (!industry || typeof industry !== 'string') return 0.5;
     const targetIndustries = ['technology', 'saas', 'finance', 'healthcare', 'education'];
     return targetIndustries.includes(industry.toLowerCase()) ? 0.8 : 0.4;
   }

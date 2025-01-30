@@ -14,7 +14,6 @@ import ReactMarkdown from 'react-markdown';
 import OutreachSequenceList from './OutreachSequenceList';
 import { OutreachSequence } from '@/app/types/outreach';
 import OutreachSequenceBuilder from './OutreachSequenceBuilder';
-import OutreachModal from './OutreachModal';
 
 const TICKET_STATUSES = ['new', 'in_progress', 'resolved'] as const;
 
@@ -50,6 +49,55 @@ interface TicketListProps {
   onAssignTicket: (ticketId: string) => void;
   onViewTimeline: (ticket: Ticket) => void;
   onRunAIUpdate?: (ticket: Ticket) => Promise<void>;
+}
+
+interface AnalysisResult {
+  scores: {
+    personalization: number;
+    relevance: number;
+    engagement: number;
+    tone: number;
+    callToAction: number;
+  };
+  keyMetrics: {
+    readability: number;
+    businessContext: number;
+    valueProposition: number;
+  };
+  overallScore: number;
+  strengths: string[];
+  improvements: string[];
+  analysis: string;
+  projectContext?: {
+    id: string;
+    title: string;
+    description: string;
+    priority: string;
+    category: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+interface ProspectAnalysis {
+  prospectInfo: {
+    name: string;
+    role: string;
+    company: string;
+  };
+  keyPoints: string[];
+  suggestedApproach: string;
+}
+
+type StepStatus = 'pending' | 'in_progress' | 'completed';
+
+interface GenerationStep {
+  taskName: string;
+  status: StepStatus;
+  startTime?: number;
+  endTime?: number;
+  error?: string;
 }
 
 const getStatusColor = (status: TicketStatus) => {
@@ -114,18 +162,19 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [generatedEmail, setGeneratedEmail] = useState<string | null>(null);
-  const [generationSteps, setGenerationSteps] = useState<Array<{
-    taskName: string;
-    status: 'pending' | 'in_progress' | 'completed';
-    startTime?: number;
-    endTime?: number;
-    error?: string;
-  }>>([]);
+  const [generationSteps, setGenerationSteps] = useState<GenerationStep[]>([
+    { taskName: 'Running Web Research', status: 'pending' },
+    { taskName: 'Reviewing Ticket History', status: 'pending' },
+    { taskName: 'Initializing Request', status: 'pending' },
+    { taskName: 'Analyzing Ticket Context', status: 'pending' },
+    { taskName: 'Generating Message', status: 'pending' },
+    { taskName: 'Analyzing Response', status: 'pending' }
+  ]);
   const [selectedStep, setSelectedStep] = useState<string | null>(null);
   const [stepDetails, setStepDetails] = useState<{
     research?: any;
     history?: any;
-    analysis?: any;
+    analysis?: AnalysisResult | ProspectAnalysis;
     error?: string;
   } | null>(null);
 
@@ -363,7 +412,7 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
       { taskName: 'Initializing Request', status: 'pending' },
       { taskName: 'Analyzing Ticket Context', status: 'pending' },
       { taskName: 'Generating Message', status: 'pending' },
-      { taskName: 'Finalizing Response', status: 'pending' }
+      { taskName: 'Analyzing Response', status: 'pending' }
     ]);
 
     try {
@@ -521,7 +570,21 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
       const generateResponse = await fetch('/api/outreach/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysis })
+        body: JSON.stringify({ 
+          analysis: {
+            ...analysis,
+            projectContext: {
+              id: projectId,
+              title: selectedTicket?.project_id || 'Unknown',
+              description: selectedTicket?.description || 'Unknown',
+              priority: selectedTicket?.priority || 'Unknown',
+              category: selectedTicket?.category || 'Unknown',
+              status: selectedTicket?.status || 'Unknown',
+              created_at: selectedTicket?.created_at || 'Unknown',
+              updated_at: selectedTicket?.updated_at || 'Unknown'
+            }
+          }
+        })
       });
 
       if (!generateResponse.ok) {
@@ -583,21 +646,119 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
         reader.releaseLock();
       }
 
-      // Step 6: Finalize
+      // Step 6: Analyze Response
       setGenerationSteps(prev => prev.map(step => 
-        step.taskName === 'Finalizing Response'
+        step.taskName === 'Analyzing Response'
           ? { ...step, status: 'in_progress', startTime: Date.now() }
           : step
       ));
 
-      // Small delay for UI
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Analyze the generated response
+      try {
+        console.log('Starting analysis with context:', {
+          content: emailContent.substring(0, 100) + '...',
+          context: {
+            prospect: {
+              name: selectedTicket?.assignee?.name,
+              role: selectedTicket?.category,
+              company: selectedTicket?.title
+            },
+            projectContext: {
+              id: projectId,
+              title: selectedTicket?.project_id
+            }
+          }
+        });
 
-      setGenerationSteps(prev => prev.map(step => 
-        step.taskName === 'Finalizing Response'
-          ? { ...step, status: 'completed', endTime: Date.now() }
-          : step
-      ));
+        const analysisResponse = await fetch('/api/outreach/analyze-response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            generatedContent: emailContent,
+            context: {
+              prospect: {
+                name: selectedTicket?.assignee?.name || 'Unknown',
+                role: selectedTicket?.category || 'Unknown',
+                company: selectedTicket?.title || 'Unknown'
+              },
+              companyInfo: {
+                industry: selectedTicket?.description || 'Unknown'
+              },
+              projectContext: {
+                id: projectId,
+                title: selectedTicket?.project_id || 'Unknown',
+                description: selectedTicket?.description || 'Unknown',
+                priority: selectedTicket?.priority || 'Unknown',
+                category: selectedTicket?.category || 'Unknown',
+                status: selectedTicket?.status || 'Unknown',
+                created_at: selectedTicket?.created_at || 'Unknown',
+                updated_at: selectedTicket?.updated_at || 'Unknown'
+              }
+            }
+          })
+        });
+
+        console.log('Analysis response status:', analysisResponse.status);
+
+        if (!analysisResponse.ok) {
+          const errorData = await analysisResponse.json();
+          console.error('Analysis response error:', errorData);
+          throw new Error(errorData.error || 'Failed to analyze response');
+        }
+
+        const analysisResult = await analysisResponse.json();
+        console.log('Analysis result received:', analysisResult);
+        
+        // Update step details with analysis result and project context
+        setStepDetails(prev => {
+          const newDetails = { 
+            ...prev, 
+            analysis: {
+              ...analysisResult,
+              projectContext: {
+                id: projectId,
+                title: selectedTicket?.project_id || 'Unknown',
+                description: selectedTicket?.description || 'Unknown',
+                priority: selectedTicket?.priority || 'Unknown',
+                category: selectedTicket?.category || 'Unknown',
+                status: selectedTicket?.status || 'Unknown',
+                created_at: selectedTicket?.created_at || 'Unknown',
+                updated_at: selectedTicket?.updated_at || 'Unknown'
+              }
+            } as AnalysisResult
+          };
+          console.log('Updated step details:', newDetails);
+          return newDetails;
+        });
+
+        // Mark analysis step as complete
+        setGenerationSteps(prev => {
+          const newSteps = prev.map(step => 
+            step.taskName === 'Analyzing Response'
+              ? { ...step, status: 'completed' as const, endTime: Date.now() }
+              : step
+          );
+          console.log('Updated generation steps:', newSteps);
+          return newSteps;
+        });
+      } catch (error) {
+        console.error('Error analyzing response:', error);
+        setGenerationSteps(prev => prev.map(step => 
+          step.taskName === 'Analyzing Response'
+            ? { 
+                ...step, 
+                status: 'completed', 
+                endTime: Date.now(),
+                error: error instanceof Error ? error.message : 'Failed to analyze response'
+              }
+            : step
+        ));
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to analyze response",
+          variant: "destructive"
+        });
+      }
 
     } catch (error) {
       console.error('❌ Error generating email:', error);
@@ -753,21 +914,31 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
   );
 
   const renderStepDetails = () => {
-    if (!stepDetails) return <div className="text-white/60">No details available for this step.</div>;
+    console.log('Rendering step details:', {
+      selectedStep,
+      stepDetails,
+      hasAnalysis: stepDetails?.analysis ? 'yes' : 'no',
+      analysisType: stepDetails?.analysis ? ('scores' in (stepDetails.analysis || {}) ? 'AnalysisResult' : 'ProspectAnalysis') : 'none'
+    });
+
+    if (!selectedStep || !stepDetails) {
+      console.log('No step selected or no step details available');
+      return null;
+    }
 
     switch (selectedStep) {
       case 'Running Web Research':
         return stepDetails.research ? (
           <div className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Search Query</h4>
-              <p className="text-white/60">{stepDetails.research.searchQuery}</p>
+              <h4 className="font-medium mb-2 text-white">Search Query</h4>
+              <p className="text-white/80">{stepDetails.research.searchQuery}</p>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Sources Found</h4>
+              <h4 className="font-medium mb-2 text-white">Sources Found</h4>
               <ul className="space-y-2">
                 {stepDetails.research.prospect.sources.map((source: any, index: number) => (
-                  <li key={index} className="text-white/60">
+                  <li key={index} className="text-white/80">
                     <a href={source.url} target="_blank" rel="noopener noreferrer" 
                        className="text-violet-400 hover:text-violet-300">
                       {source.title}
@@ -777,8 +948,8 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
               </ul>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Background Information</h4>
-              <p className="text-white/60 whitespace-pre-wrap">
+              <h4 className="font-medium mb-2 text-white">Background Information</h4>
+              <p className="text-white/80 whitespace-pre-wrap">
                 {stepDetails.research.prospect.background}
               </p>
             </div>
@@ -789,31 +960,31 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
         return stepDetails.history ? (
           <div className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Interaction Summary</h4>
-              <div className="grid grid-cols-2 gap-4 text-white/60">
+              <h4 className="font-medium mb-2 text-white">Interaction Summary</h4>
+              <div className="grid grid-cols-2 gap-4 text-white/80">
                 <div>Total Sessions: {stepDetails.history.insights.totalSessions}</div>
                 <div>Last Interaction: {new Date(stepDetails.history.insights.lastInteractionDate).toLocaleDateString()}</div>
               </div>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Common Activities</h4>
+              <h4 className="font-medium mb-2 text-white">Common Activities</h4>
               <ul className="space-y-1">
                 {stepDetails.history.insights.commonActivities.map((activity: any, index: number) => (
-                  <li key={index} className="text-white/60">
+                  <li key={index} className="text-white/80">
                     {activity.type}: {activity.count} times
                   </li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Recent Sessions</h4>
+              <h4 className="font-medium mb-2 text-white">Recent Sessions</h4>
               <div className="space-y-3">
                 {stepDetails.history.sessions.map((session: any) => (
                   <div key={session.id} className="bg-white/5 p-3 rounded">
-                    <div className="text-white/80 mb-1">
+                    <div className="text-white mb-1">
                       {new Date(session.created_at).toLocaleDateString()}
                     </div>
-                    <p className="text-white/60">{session.summary}</p>
+                    <p className="text-white/80">{session.summary}</p>
                   </div>
                 ))}
               </div>
@@ -822,32 +993,212 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
         ) : null;
 
       case 'Analyzing Ticket Context':
-        return stepDetails.analysis ? (
+        if (!stepDetails?.analysis || !('prospectInfo' in stepDetails.analysis)) return null;
+        
+        const prospectAnalysis = stepDetails.analysis as ProspectAnalysis;
+        return (
           <div className="space-y-4">
             <div>
-              <h4 className="font-medium mb-2">Prospect Information</h4>
-              <div className="grid grid-cols-2 gap-2 text-white/60">
-                <div>Role: {stepDetails.analysis.prospectInfo.role}</div>
-                <div>Company: {stepDetails.analysis.prospectInfo.company}</div>
+              <h4 className="font-medium mb-2 text-white">Prospect Information</h4>
+              <div className="grid grid-cols-2 gap-2 text-white/80">
+                <div>Role: {prospectAnalysis.prospectInfo.role}</div>
+                <div>Company: {prospectAnalysis.prospectInfo.company}</div>
               </div>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Key Points</h4>
+              <h4 className="font-medium mb-2 text-white">Key Points</h4>
               <ul className="list-disc pl-4 space-y-1">
-                {stepDetails.analysis.keyPoints.map((point: string, index: number) => (
-                  <li key={index} className="text-white/60">{point}</li>
+                {prospectAnalysis.keyPoints.map((point, index) => (
+                  <li key={index} className="text-white/80">{point}</li>
                 ))}
               </ul>
             </div>
             <div>
-              <h4 className="font-medium mb-2">Suggested Approach</h4>
-              <p className="text-white/60">{stepDetails.analysis.suggestedApproach}</p>
+              <h4 className="font-medium mb-2 text-white">Suggested Approach</h4>
+              <p className="text-white/80">{prospectAnalysis.suggestedApproach}</p>
             </div>
           </div>
-        ) : null;
+        );
+
+      case 'Analyzing Response':
+        if (!stepDetails.analysis || !('scores' in stepDetails.analysis)) {
+          console.log('Analysis validation failed:', {
+            hasStepDetails: true,
+            hasAnalysis: !!stepDetails.analysis,
+            hasScores: stepDetails.analysis ? 'scores' in stepDetails.analysis : false,
+            analysisType: stepDetails.analysis ? Object.keys(stepDetails.analysis) : []
+          });
+          return <div className="text-white/60">Analysis data is not available yet.</div>;
+        }
+        
+        const responseAnalysis = stepDetails.analysis as AnalysisResult;
+        console.log('Rendering analysis with data:', {
+          hasScores: !!responseAnalysis.scores,
+          scoresKeys: Object.keys(responseAnalysis.scores || {}),
+          hasKeyMetrics: !!responseAnalysis.keyMetrics,
+          keyMetricsKeys: Object.keys(responseAnalysis.keyMetrics || {}),
+          hasStrengths: !!responseAnalysis.strengths,
+          strengthsCount: responseAnalysis.strengths?.length,
+          hasImprovements: !!responseAnalysis.improvements,
+          improvementsCount: responseAnalysis.improvements?.length,
+          hasProjectContext: !!responseAnalysis.projectContext,
+          overallScore: responseAnalysis.overallScore
+        });
+        return (
+          <div className="space-y-6">
+            {/* Project Context Section */}
+            {responseAnalysis.projectContext && (
+              <div className="bg-white/5 rounded-lg p-4">
+                <h4 className="font-medium mb-4 text-violet-400">Project Context</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-white/60">Project ID:</span>
+                    <span className="ml-2 text-white">{responseAnalysis.projectContext.id}</span>
+                  </div>
+                  <div>
+                    <span className="text-white/60">Priority:</span>
+                    <span className="ml-2 text-white">{responseAnalysis.projectContext.priority}</span>
+                  </div>
+                  <div>
+                    <span className="text-white/60">Category:</span>
+                    <span className="ml-2 text-white">{responseAnalysis.projectContext.category}</span>
+                  </div>
+                  <div>
+                    <span className="text-white/60">Status:</span>
+                    <span className="ml-2 text-white">{responseAnalysis.projectContext.status}</span>
+                  </div>
+                </div>
+                {responseAnalysis.projectContext.description && (
+                  <div className="mt-4">
+                    <span className="text-white/60 block mb-2">Project Description:</span>
+                    <p className="text-white/80 text-sm">{responseAnalysis.projectContext.description}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-6">
+              {/* Scores Section */}
+              {responseAnalysis.scores && Object.keys(responseAnalysis.scores).length > 0 && (
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="font-medium mb-4 text-violet-400">Message Scores</h4>
+                  <div className="space-y-3">
+                    {Object.entries(responseAnalysis.scores).map(([key, value]) => (
+                      <div key={key} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/80">{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                          <span className="text-white">{(value * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                            style={{ width: `${value * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Key Metrics Section */}
+              {responseAnalysis.keyMetrics && Object.keys(responseAnalysis.keyMetrics).length > 0 && (
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="font-medium mb-4 text-violet-400">Key Metrics</h4>
+                  <div className="space-y-3">
+                    {Object.entries(responseAnalysis.keyMetrics).map(([key, value]) => (
+                      <div key={key} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-white/80">{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                          <span className="text-white">{(value * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-violet-500 rounded-full transition-all duration-500"
+                            style={{ width: `${value * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Overall Score Section */}
+            {typeof responseAnalysis.overallScore === 'number' && (
+              <div className="bg-white/5 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-violet-400">Overall Effectiveness Score</h4>
+                  <div className="text-2xl font-bold text-white">
+                    {(responseAnalysis.overallScore * 100).toFixed(0)}%
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Strengths and Improvements Section */}
+            <div className="grid grid-cols-2 gap-6">
+              {responseAnalysis.strengths && responseAnalysis.strengths.length > 0 && (
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="font-medium mb-3 text-green-400">Strengths</h4>
+                  <ul className="space-y-2">
+                    {responseAnalysis.strengths.map((strength, index) => (
+                      <li key={index} className="flex gap-2 text-sm">
+                        <CheckIcon className="w-4 h-4 text-green-400 mt-1 flex-shrink-0" />
+                        <span className="text-white/80">{strength}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {responseAnalysis.improvements && responseAnalysis.improvements.length > 0 && (
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="font-medium mb-3 text-yellow-400">Areas for Improvement</h4>
+                  <ul className="space-y-2">
+                    {responseAnalysis.improvements.map((improvement, index) => (
+                      <li key={index} className="flex gap-2 text-sm">
+                        <svg className="w-4 h-4 text-yellow-400 mt-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span className="text-white/80">{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Detailed Analysis Section */}
+            {responseAnalysis.analysis && (
+              <div className="bg-white/5 rounded-lg p-4">
+                <h4 className="font-medium mb-3 text-violet-400">Detailed Analysis</h4>
+                <p className="text-white/80 text-sm whitespace-pre-wrap leading-relaxed">
+                  {responseAnalysis.analysis}
+                </p>
+              </div>
+            )}
+          </div>
+        );
 
       default:
+        console.log('Unknown step selected:', selectedStep);
         return <div className="text-white/60">No details available for this step.</div>;
+    }
+  };
+
+  // Update the step click handler
+  const handleStepClick = (step: GenerationStep) => {
+    console.log('Step clicked:', {
+      stepName: step.taskName,
+      status: step.status,
+      currentStepDetails: stepDetails,
+      currentSelectedStep: selectedStep
+    });
+
+    if (step.status === 'completed') {
+      setSelectedStep(step.taskName);
     }
   };
 
@@ -1036,14 +1387,11 @@ export default function TicketList({ tickets, projectId, onStatusChange, onAssig
                       {generationSteps.map((step, index) => (
                         <button
                           key={step.taskName}
-                          onClick={() => {
-                            if (step.status === 'completed') {
-                              setSelectedStep(step.taskName);
-                            }
-                          }}
+                          onClick={() => handleStepClick(step)}
                           className={cn(
                             "w-full flex items-center gap-3 p-2 rounded transition-colors",
-                            step.status === 'completed' && "hover:bg-white/5 cursor-pointer"
+                            step.status === 'completed' && "hover:bg-white/5 cursor-pointer",
+                            selectedStep === step.taskName && "bg-white/5"
                           )}
                         >
                           <div className={cn(
