@@ -7,6 +7,7 @@ import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableSequence } from "@langchain/core/runnables";
 import { EnhancedOutreachService } from '@/app/ai_agents/services/EnhancedOutreachService';
 import { OpenAI } from 'openai';
+import { Run, RunParams } from "langsmith";
 
 // Add these interfaces at the top of the file after the imports
 interface MessageAnalysisScores {
@@ -42,6 +43,16 @@ interface PerformanceError {
 }
 
 const OUTREACH_PROJECT_NAME = process.env.LANGSMITH_PROJECT_OUTREACH || "outreach-crm-ai";
+
+// Initialize LangSmith components
+const client = new Client({
+  apiUrl: process.env.NEXT_PUBLIC_LANGSMITH_ENDPOINT_OUTREACH,
+  apiKey: process.env.NEXT_PUBLIC_LANGSMITH_API_KEY_OUTREACH,
+});
+
+const tracer = new LangChainTracer({
+  projectName: OUTREACH_PROJECT_NAME,
+});
 
 // Add placeholder detection patterns
 const PLACEHOLDER_PATTERNS = [
@@ -348,9 +359,21 @@ const openai = new OpenAI({
 });
 
 export async function POST(req: Request) {
+  let run: Run | undefined;
+
   try {
     const { analysis } = await req.json();
     console.log('🤖 Generating email with analysis:', analysis);
+
+    // Start LangSmith run
+    const runParams: RunParams = {
+      name: "Generate Email",
+      run_type: "chain",
+      project_name: OUTREACH_PROJECT_NAME,
+      inputs: { analysis },
+      start_time: Date.now()
+    };
+    run = await client.createRun(runParams) as unknown as Run;
 
     const prompt = `Write a professional and engaging email to ${analysis.prospectInfo.name} based on the following analysis:
 
@@ -403,21 +426,43 @@ Write only the email content, no subject line needed. Make it feel personal and 
             stream: true,
           });
 
+          // Update LangSmith run with start of generation
+          if (run) {
+            await client.updateRun(run.id, {
+              child_runs: [{
+                name: "OpenAI Stream",
+                run_type: "llm",
+                inputs: { prompt },
+                start_time: Date.now()
+              }]
+            });
+          }
+
           controller.enqueue(
             new TextEncoder().encode(
               `data: ${JSON.stringify({ type: 'status', message: 'Starting generation...' })}\n\n`
             )
           );
 
+          let generatedContent = '';
           for await (const chunk of completion) {
             const content = chunk.choices[0]?.delta?.content;
             if (content) {
+              generatedContent += content;
               controller.enqueue(
                 new TextEncoder().encode(
                   `data: ${JSON.stringify({ type: 'content', content })}\n\n`
                 )
               );
             }
+          }
+
+          // Update LangSmith run with success
+          if (run) {
+            await client.updateRun(run.id, {
+              end_time: Date.now(),
+              outputs: { generatedContent }
+            });
           }
 
           controller.enqueue(
@@ -431,6 +476,16 @@ Write only the email content, no subject line needed. Make it feel personal and 
           controller.close();
         } catch (error) {
           console.error('❌ Error in stream:', error);
+          
+          // Update LangSmith run with error
+          if (run) {
+            await client.updateRun(run.id, {
+              end_time: Date.now(),
+              error: error instanceof Error ? error.message : 'Error in stream',
+              outputs: { error: 'Error generating content' }
+            });
+          }
+
           controller.enqueue(
             new TextEncoder().encode(
               `data: ${JSON.stringify({ type: 'error', message: 'Error generating content' })}\n\n`
@@ -451,6 +506,16 @@ Write only the email content, no subject line needed. Make it feel personal and 
 
   } catch (error) {
     console.error('❌ Error in generate route:', error);
+    
+    // Update LangSmith run with error
+    if (run) {
+      await client.updateRun(run.id, {
+        end_time: Date.now(),
+        error: error instanceof Error ? error.message : 'Failed to generate email',
+        outputs: { error: 'Failed to generate email' }
+      });
+    }
+
     return NextResponse.json(
       { error: 'Failed to generate email' },
       { status: 500 }

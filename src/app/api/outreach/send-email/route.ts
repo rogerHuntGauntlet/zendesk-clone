@@ -1,12 +1,28 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { Client, Run } from "langsmith";
+import { LangChainTracer } from "langchain/callbacks";
+
+const OUTREACH_PROJECT_NAME = process.env.NEXT_PUBLIC_LANGSMITH_PROJECT_OUTREACH || "outreach-crm-ai";
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Initialize LangSmith components
+const client = new Client({
+  apiUrl: process.env.NEXT_PUBLIC_LANGSMITH_ENDPOINT_OUTREACH,
+  apiKey: process.env.NEXT_PUBLIC_LANGSMITH_API_KEY_OUTREACH,
+});
+
+const tracer = new LangChainTracer({
+  projectName: OUTREACH_PROJECT_NAME,
+});
+
 export async function POST(request: Request) {
+  let run: Run | undefined;
+
   try {
     const { ticketId, prospectEmail, message, subject, metadata } = await request.json();
 
@@ -16,6 +32,16 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Start LangSmith run
+    const runParams = {
+      name: "Send Email",
+      run_type: "chain",
+      project_name: OUTREACH_PROJECT_NAME,
+      inputs: { ticketId, prospectEmail, subject, metadata },
+      start_time: Date.now()
+    };
+    run = await client.createRun(runParams) as unknown as Run;
 
     // Simulate email sending
     const simulatedEmailResult = {
@@ -47,6 +73,14 @@ export async function POST(request: Request) {
 
     if (sessionError) {
       console.error('Error creating session:', sessionError);
+      // Update LangSmith run with error
+      if (run) {
+        await client.updateRun(run.id, {
+          end_time: Date.now(),
+          error: 'Failed to create session record',
+          outputs: { error: sessionError }
+        });
+      }
       throw new Error('Failed to create session record');
     }
 
@@ -67,6 +101,14 @@ export async function POST(request: Request) {
 
     if (messageError) {
       console.error('Error creating message:', messageError);
+      // Update LangSmith run with error
+      if (run) {
+        await client.updateRun(run.id, {
+          end_time: Date.now(),
+          error: 'Failed to create message record',
+          outputs: { error: messageError }
+        });
+      }
       throw new Error('Failed to create message record');
     }
 
@@ -87,6 +129,14 @@ export async function POST(request: Request) {
 
     if (activityError) {
       console.error('Error creating activity:', activityError);
+      // Update LangSmith run with error
+      if (run) {
+        await client.updateRun(run.id, {
+          end_time: Date.now(),
+          error: 'Failed to create activity record',
+          outputs: { error: activityError }
+        });
+      }
       throw new Error('Failed to create activity record');
     }
 
@@ -96,6 +146,17 @@ export async function POST(request: Request) {
       messageId: simulatedEmailResult.messageId
     });
 
+    // Update LangSmith run with success
+    if (run) {
+      await client.updateRun(run.id, {
+        end_time: Date.now(),
+        outputs: {
+          messageId: simulatedEmailResult.messageId,
+          emailResult: simulatedEmailResult
+        }
+      });
+    }
+
     return NextResponse.json({
       success: true,
       messageId: simulatedEmailResult.messageId,
@@ -104,6 +165,14 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('Error in send-email:', error);
+    // Update LangSmith run with error
+    if (run) {
+      await client.updateRun(run.id, {
+        end_time: Date.now(),
+        error: error instanceof Error ? error.message : 'Failed to send email',
+        outputs: { error: 'Failed to send email' }
+      });
+    }
     return NextResponse.json(
       { error: 'Failed to send email' },
       { status: 500 }

@@ -1,9 +1,49 @@
 import { NextResponse } from 'next/server';
+import { Client, Run } from "langsmith";
+import { LangChainTracer } from "langchain/callbacks";
+
+const OUTREACH_PROJECT_NAME = process.env.NEXT_PUBLIC_LANGSMITH_PROJECT_OUTREACH || "outreach-crm-ai";
+
+interface RunParams {
+  name: string;
+  run_type: string;
+  project_name: string;
+  inputs: Record<string, unknown>;
+  start_time: number;
+}
+
+interface Session {
+  created_at: string;
+  summary: string;
+  activities: any[];
+}
 
 export async function POST(req: Request) {
+  // Initialize LangSmith components
+  const client = new Client({
+    apiUrl: process.env.NEXT_PUBLIC_LANGSMITH_ENDPOINT_OUTREACH,
+    apiKey: process.env.NEXT_PUBLIC_LANGSMITH_API_KEY_OUTREACH,
+  });
+
+  const tracer = new LangChainTracer({
+    projectName: OUTREACH_PROJECT_NAME,
+  });
+
+  let run: Run | undefined;
+
   try {
     const { ticket, research, ticketHistory } = await req.json();
     console.log('📊 Analyzing ticket:', ticket.id);
+
+    // Start LangSmith run
+    const runParams: RunParams = {
+      name: "Ticket Analysis",
+      run_type: "chain",
+      project_name: OUTREACH_PROJECT_NAME,
+      inputs: { ticket, research, ticketHistory },
+      start_time: Date.now()
+    };
+    run = await client.createRun(runParams) as unknown as Run;
 
     // Extract prospect name from title (assuming format "Prospect: Name")
     const prospectName = ticket.title.includes(':') 
@@ -26,7 +66,7 @@ export async function POST(req: Request) {
           lastInteraction: ticketHistory.insights.lastInteractionDate,
           commonActivities: ticketHistory.insights.commonActivities,
           significantEvents: ticketHistory.insights.significantEvents,
-          recentSessions: ticketHistory.sessions.slice(0, 3).map(session => ({
+          recentSessions: ticketHistory.sessions.slice(0, 3).map((session: Session) => ({
             date: session.created_at,
             summary: session.summary,
             activities: session.activities
@@ -49,10 +89,29 @@ export async function POST(req: Request) {
     };
 
     console.log('✅ Analysis complete:', analysis);
+
+    // Update LangSmith run with success
+    if (run) {
+      await client.updateRun(run.id, {
+        end_time: Date.now(),
+        outputs: { analysis }
+      });
+    }
+
     return NextResponse.json({ analysis });
 
   } catch (error) {
     console.error('❌ Error analyzing ticket:', error);
+
+    // Update LangSmith run with error
+    if (run) {
+      await client.updateRun(run.id, {
+        end_time: Date.now(),
+        error: error instanceof Error ? error.message : 'Failed to analyze ticket',
+        outputs: { error: 'Failed to analyze ticket' }
+      });
+    }
+
     return NextResponse.json(
       { error: 'Failed to analyze ticket' },
       { status: 500 }
